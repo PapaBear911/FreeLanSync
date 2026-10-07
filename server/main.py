@@ -43,8 +43,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=SERVICE_NAME,
-    version="1.0.0",
-    description="High-speed local Wi-Fi photo & video backup server for Android",
+    version="1.1.0",
+    description="High-speed gigabit local Wi-Fi transfer, backup, and continuity server for Android & Desktop",
     lifespan=lifespan
 )
 
@@ -100,7 +100,7 @@ async def ping():
     return {
         "status": "online",
         "service": SERVICE_NAME,
-        "version": "1.0.0",
+        "version": "1.1.0",
         "host": get_local_ip(),
         "port": SERVER_PORT
     }
@@ -115,7 +115,7 @@ async def get_pairing_info():
         **info,
         "qr_svg": qr_svg,
         "apk_qr_svg": apk_qr_svg,
-        "apk_download_url": f"http://{local_ip}:{SERVER_PORT}/static/PhotoSync.apk"
+        "apk_download_url": f"http://{local_ip}:{SERVER_PORT}/static/FreeLanSync.apk"
     }
 
 @app.post("/api/v1/pairing/verify", response_model=PairResponse)
@@ -354,4 +354,4 @@ async def dashboard():
     html_file = static_dir / "index.html"
     if html_file.exists():
         return html_file.read_text(encoding="utf-8")
-    return "<h1>PhotoSync Server is running</h1>"
+    return "<h1>FreeLanSync Server is running</h1>"

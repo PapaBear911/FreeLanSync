@@ -55,7 +55,7 @@ class PairingManager:
             "host": local_ip,
             "port": SERVER_PORT,
             "pin": pin,
-            "service": "photosync"
+            "service": "freelansync"
         }
         return {
             "pin": pin,
@@ -84,7 +84,7 @@ class PairingManager:
     def generate_apk_download_qr_svg(self) -> str:
         """Generate QR Code for downloading the Android APK directly."""
         local_ip = get_local_ip()
-        apk_url = f"http://{local_ip}:{SERVER_PORT}/static/PhotoSync.apk"
+        apk_url = f"http://{local_ip}:{SERVER_PORT}/static/FreeLanSync.apk"
         return self._matrix_to_svg(apk_url, size_px=220)
 
 pairing_manager = PairingManager()

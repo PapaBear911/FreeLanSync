@@ -22,7 +22,7 @@
         android:name=".PhotoSyncApplication"
         android:allowBackup="true"
         android:icon="@android:drawable/ic_menu_camera"
-        android:label="PhotoSync"
+        android:label="FreeLanSync"
         android:roundIcon="@android:drawable/ic_menu_camera"
         android:supportsRtl="true"
         android:theme="@style/Theme.PhotoSync"
@@ -45,7 +45,7 @@
         <!-- Notification Mirroring Listener Service -->
         <service
             android:name=".service.PhotoSyncNotificationListener"
-            android:label="PhotoSync Notification Mirror"
+            android:label="FreeLanSync Notification Mirror"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>

@@ -58,8 +58,8 @@ fun DashboardScreen(
             TopAppBar(
                 title = { 
                     Column {
-                        Text("PhotoSync & Synco", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("Device Continuity Active", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Text("FreeLanSync", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("Gigabit LAN & Continuity Active", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 actions = {

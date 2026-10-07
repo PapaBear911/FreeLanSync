@@ -1,8 +1,8 @@
 @echo off
 setlocal
-title PhotoSync Desktop Server
+title FreeLanSync Desktop Server
 echo ========================================================
-echo        Starting PhotoSync Local Desktop Server
+echo        Starting FreeLanSync Local Desktop Server
 echo ========================================================
 echo.
 

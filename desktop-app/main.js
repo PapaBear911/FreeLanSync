@@ -100,7 +100,7 @@ function createWindow() {
     height: 820,
     minWidth: 800,
     minHeight: 600,
-    title: 'PhotoSync & Synco Continuity Hub',
+    title: 'FreeLanSync Continuity & Gigabit Hub',
     backgroundColor: '#020617',
     autoHideMenuBar: true,
     webPreferences: {
@@ -117,8 +117,8 @@ function createWindow() {
       mainWindow.hide();
       if (tray) {
         tray.displayBalloon({
-          title: 'PhotoSync & Synco is running',
-          content: 'Running in your system tray with active notification mirroring and backup sync.'
+          title: 'FreeLanSync is running',
+          content: 'Running in your system tray with active gigabit transfer and continuity mirroring.'
         });
       }
     }
@@ -128,7 +128,7 @@ function createWindow() {
 function setupTray() {
   const icon = createTrayIcon();
   tray = new Tray(icon);
-  tray.setToolTip('PhotoSync & Synco Continuity Hub (Active)');
+  tray.setToolTip('FreeLanSync Continuity & Gigabit Hub (Active)');
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -148,7 +148,7 @@ function setupTray() {
     },
     { type: 'separator' },
     {
-      label: 'Quit PhotoSync Server',
+      label: 'Quit FreeLanSync Server',
       click: () => {
         isQuitting = true;
         app.quit();
