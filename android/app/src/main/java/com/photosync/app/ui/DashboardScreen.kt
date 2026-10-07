@@ -98,7 +98,7 @@ fun DashboardScreen(
                         ) {
                             Icon(Icons.Default.CloudDone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Text(
-                                text = "Connected to Desktop Server",
+                                text = "Connected to FreeLanSync Server",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -107,6 +107,12 @@ fun DashboardScreen(
                         Text(
                             text = "Server: http://${serverConfig.host}:${serverConfig.port}",
                             style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Protocol: Gigabit LANSync P2P (WakeLock + High-Perf Wi-Fi)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = "Device Name: ${serverConfig.deviceName}",
