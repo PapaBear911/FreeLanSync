@@ -6,6 +6,9 @@ __pycache__/
 .pytest_cache/
 photosync.db*
 photosync_config.json
+freelansync.db*
+freelansync_config.json
+server/static/*.exe
 
 # Node & Desktop App
 desktop-app/node_modules/

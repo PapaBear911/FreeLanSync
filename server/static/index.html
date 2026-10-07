@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>FreeLanSync — Continuity &amp; Gigabit Transfer</title>
+  <!-- Dribbble AI Agent Icon Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect width='64' height='64' rx='16' fill='%230F172A' stroke='%2338BDF8' stroke-width='1.5'/%3E%3Cellipse cx='32' cy='32' rx='19' ry='8' transform='rotate(-30 32 32)' stroke='%2338BDF8' stroke-width='2' fill='none'/%3E%3Cellipse cx='32' cy='32' rx='19' ry='8' transform='rotate(30 32 32)' stroke='%23C084FC' stroke-width='2' fill='none'/%3E%3Cpolygon points='32,19 40.5,32 32,45 23.5,32' fill='%23818CF8'/%3E%3Ccircle cx='32' cy='32' r='2.5' fill='%23FFFFFF'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -144,6 +146,32 @@
       animation: radar-ping 2.5s cubic-bezier(0, 0.2, 0.8, 1) infinite;
     }
 
+    /* Dribbble AI Agent Icon Dynamics */
+    @keyframes ai-spark-twinkle {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(255,255,255,0.9)); }
+      50% { transform: scale(1.12); filter: drop-shadow(0 0 8px rgba(56,189,248,0.95)); }
+    }
+    @keyframes ai-shimmer-sweep {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    @keyframes ai-orbit-breathe {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 0.65; }
+    }
+    .ai-agent-spark {
+      animation: ai-spark-twinkle 3.2s infinite ease-in-out;
+      transform-origin: 32px 32px;
+    }
+    .ai-agent-orbit {
+      animation: ai-orbit-breathe 4s infinite ease-in-out;
+    }
+    .ai-shimmer-border {
+      background: linear-gradient(90deg, rgba(99,102,241,0.2) 0%, rgba(56,189,248,0.7) 50%, rgba(192,132,252,0.2) 100%);
+      background-size: 200% 100%;
+      animation: ai-shimmer-sweep 4s linear infinite;
+    }
+
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
@@ -206,15 +234,80 @@
         
         <!-- Brand Mark & Connection Beacon -->
         <div class="flex items-center gap-3.5">
-          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-600/25 border border-white/20">
-            <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+          <!-- Dribbble-inspired AI Agent Core Icon -->
+          <div class="relative group cursor-pointer" title="FreeLanSync Autonomous Mesh Agent">
+            <div class="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 via-indigo-500/30 to-fuchsia-500/30 rounded-2xl blur-md opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
+            
+            <svg class="relative w-10 h-10 drop-shadow-[0_8px_16px_rgba(99,102,241,0.4)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="aiSqBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#1E1B4B" />
+                  <stop offset="50%" stop-color="#0F172A" />
+                  <stop offset="100%" stop-color="#050814" />
+                </linearGradient>
+                <linearGradient id="aiRim" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.9" />
+                  <stop offset="35%" stop-color="#818CF8" stop-opacity="0.7" />
+                  <stop offset="70%" stop-color="#C084FC" stop-opacity="0.9" />
+                  <stop offset="100%" stop-color="#F472B6" stop-opacity="0.6" />
+                </linearGradient>
+                <linearGradient id="aiOrbit1" x1="12" y1="18" x2="52" y2="46" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#38BDF8" />
+                  <stop offset="50%" stop-color="#818CF8" />
+                  <stop offset="100%" stop-color="#C084FC" />
+                </linearGradient>
+                <linearGradient id="aiOrbit2" x1="12" y1="46" x2="52" y2="18" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#A855F7" />
+                  <stop offset="50%" stop-color="#38BDF8" />
+                  <stop offset="100%" stop-color="#34D399" />
+                </linearGradient>
+                <linearGradient id="aiCoreTop" x1="32" y1="19" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#FFFFFF" />
+                  <stop offset="100%" stop-color="#93C5FD" />
+                </linearGradient>
+                <linearGradient id="aiCoreBottom" x1="32" y1="32" x2="32" y2="45" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#818CF8" />
+                  <stop offset="100%" stop-color="#3B82F6" />
+                </linearGradient>
+                <linearGradient id="aiCoreLeft" x1="23.5" y1="32" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#38BDF8" />
+                  <stop offset="100%" stop-color="#C7D2FE" />
+                </linearGradient>
+                <linearGradient id="aiCoreRight" x1="32" y1="32" x2="40.5" y2="32" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#C084FC" />
+                  <stop offset="100%" stop-color="#E879F9" />
+                </linearGradient>
+                <filter id="aiGlow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+              <rect x="2.5" y="2.5" width="59" height="59" rx="16" fill="url(#aiSqBg)" stroke="url(#aiRim)" stroke-width="1.5" />
+              <path d="M4 18 C4 10.5 10.5 4 18 4 L46 4 C53.5 4 60 10.5 60 18 C47 21 17 23 4 18 Z" fill="white" fill-opacity="0.12" />
+              <circle cx="32" cy="32" r="13" fill="#6366F1" fill-opacity="0.35" filter="url(#aiGlow)" />
+              <circle cx="32" cy="32" r="7" fill="#38BDF8" fill-opacity="0.45" filter="url(#aiGlow)" />
+              <ellipse class="ai-agent-orbit" cx="32" cy="32" rx="19.5" ry="8" transform="rotate(-30 32 32)" stroke="url(#aiOrbit1)" stroke-width="1.8" stroke-linecap="round" fill="none" />
+              <ellipse class="ai-agent-orbit" cx="32" cy="32" rx="19.5" ry="8" transform="rotate(30 32 32)" stroke="url(#aiOrbit2)" stroke-width="1.8" stroke-linecap="round" fill="none" />
+              <circle cx="47" cy="23.5" r="2" fill="#38BDF8" filter="url(#aiGlow)" />
+              <circle cx="17" cy="40.5" r="1.8" fill="#C084FC" filter="url(#aiGlow)" />
+              <g class="ai-agent-spark">
+                <path d="M32 19 L40.5 32 L32 29 L23.5 32 Z" fill="url(#aiCoreTop)" opacity="0.95" />
+                <path d="M32 45 L40.5 32 L32 35 L23.5 32 Z" fill="url(#aiCoreBottom)" opacity="0.95" />
+                <path d="M23.5 32 L32 19 L32 29 Z" fill="url(#aiCoreLeft)" opacity="0.9" />
+                <path d="M23.5 32 L32 45 L32 35 Z" fill="url(#aiCoreLeft)" opacity="0.8" />
+                <path d="M40.5 32 L32 19 L32 29 Z" fill="url(#aiCoreRight)" opacity="0.9" />
+                <path d="M40.5 32 L32 45 L32 35 Z" fill="url(#aiCoreRight)" opacity="0.8" />
+                <circle cx="32" cy="32" r="2.2" fill="#FFFFFF" />
+                <circle cx="32" cy="32" r="5" fill="#FFFFFF" fill-opacity="0.5" filter="url(#aiGlow)" />
+              </g>
+            </svg>
           </div>
           <div>
             <div class="flex items-center gap-2">
               <h1 class="text-base font-bold text-white tracking-tight">FreeLanSync</h1>
-              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-beacon"></span>
-                Connected
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 shadow-[0_0_12px_rgba(99,102,241,0.2)]">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 pulse-beacon"></span>
+                AI Agent Mesh
               </span>
             </div>
             <p class="text-[11px] text-slate-400 font-mono tracking-tight" id="serverAddress">Detecting local network...</p>
@@ -230,10 +323,16 @@
             <span id="topBatteryText">Phone: --%</span>
           </div>
 
-          <!-- Get Mobile App Pill -->
+          <!-- Storage Setup Button -->
+          <button onclick="openSettingsModal()" class="ios-btn hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold" title="Setup Storage Directory">
+            <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Storage Vault</span>
+          </button>
+
+          <!-- Download Apps Pill -->
           <button onclick="openWelcomeModal()" class="ios-btn flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/25">
-            <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
-            <span class="hidden md:inline">Get Mobile App</span>
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span class="hidden md:inline">Download Apps</span>
           </button>
 
           <!-- Settings Button -->
@@ -359,15 +458,21 @@
               </div>
             </div>
 
-            <div class="ios-glass rounded-2xl p-4 flex items-center gap-3.5">
-              <div class="w-11 h-11 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 flex-shrink-0">
-                <i data-lucide="hard-drive" class="w-5 h-5"></i>
+            <div onclick="openSettingsModal()" class="ios-glass rounded-2xl p-4 flex items-center justify-between gap-3.5 cursor-pointer hover:border-indigo-500/40 hover:bg-white/[0.04] transition-all group" title="Click to configure storage folder">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-11 h-11 rounded-2xl bg-violet-500/10 border border-violet-500/20 group-hover:scale-105 transition-transform flex items-center justify-center text-violet-400 flex-shrink-0">
+                  <i data-lucide="hard-drive" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <span>Vault Storage</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">Setup</span>
+                  </p>
+                  <h3 class="text-xl font-bold text-white mt-0.5 truncate" id="statStorage">0 B</h3>
+                  <span class="text-[10px] text-slate-500 truncate block group-hover:text-cyan-400 transition-colors" id="currentStorageDisplay">Local PC storage</span>
+                </div>
               </div>
-              <div class="min-w-0">
-                <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wide">Vault Size</p>
-                <h3 class="text-xl font-bold text-white mt-0.5 truncate" id="statStorage">0 B</h3>
-                <span class="text-[10px] text-slate-500 truncate block" id="currentStorageDisplay">Local PC storage</span>
-              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-white transition-colors"></i>
             </div>
 
           </div>
@@ -719,6 +824,60 @@
           </div>
         </div>
 
+        <!-- Autonomous AI Continuity Mesh Status Card -->
+        <div class="col-span-full ios-glass rounded-3xl p-6 relative overflow-hidden">
+          <div class="absolute -top-10 -right-10 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <div class="relative group flex-shrink-0">
+                <div class="absolute -inset-1 bg-gradient-to-r from-cyan-500/40 via-indigo-500/40 to-fuchsia-500/40 rounded-2xl blur-md opacity-75"></div>
+                <svg class="relative w-12 h-12 drop-shadow-[0_8px_16px_rgba(99,102,241,0.4)]" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2.5" y="2.5" width="59" height="59" rx="16" fill="url(#aiSqBg)" stroke="url(#aiRim)" stroke-width="1.5" />
+                  <path d="M4 18 C4 10.5 10.5 4 18 4 L46 4 C53.5 4 60 10.5 60 18 C47 21 17 23 4 18 Z" fill="white" fill-opacity="0.14" />
+                  <circle cx="32" cy="32" r="14" fill="#6366F1" fill-opacity="0.35" filter="url(#aiGlow)" />
+                  <circle cx="32" cy="32" r="7" fill="#38BDF8" fill-opacity="0.5" filter="url(#aiGlow)" />
+                  <ellipse class="ai-agent-orbit" cx="32" cy="32" rx="19.5" ry="8" transform="rotate(-30 32 32)" stroke="url(#aiOrbit1)" stroke-width="1.8" stroke-linecap="round" fill="none" />
+                  <ellipse class="ai-agent-orbit" cx="32" cy="32" rx="19.5" ry="8" transform="rotate(30 32 32)" stroke="url(#aiOrbit2)" stroke-width="1.8" stroke-linecap="round" fill="none" />
+                  <circle cx="47" cy="23.5" r="2" fill="#38BDF8" filter="url(#aiGlow)" />
+                  <circle cx="17" cy="40.5" r="1.8" fill="#C084FC" filter="url(#aiGlow)" />
+                  <g class="ai-agent-spark">
+                    <path d="M32 19 L40.5 32 L32 29 L23.5 32 Z" fill="url(#aiCoreTop)" opacity="0.95" />
+                    <path d="M32 45 L40.5 32 L32 35 L23.5 32 Z" fill="url(#aiCoreBottom)" opacity="0.95" />
+                    <path d="M23.5 32 L32 19 L32 29 Z" fill="url(#aiCoreLeft)" opacity="0.9" />
+                    <path d="M23.5 32 L32 45 L32 35 Z" fill="url(#aiCoreLeft)" opacity="0.8" />
+                    <path d="M40.5 32 L32 19 L32 29 Z" fill="url(#aiCoreRight)" opacity="0.9" />
+                    <path d="M40.5 32 L32 45 L32 35 Z" fill="url(#aiCoreRight)" opacity="0.8" />
+                    <circle cx="32" cy="32" r="2.2" fill="#FFFFFF" />
+                    <circle cx="32" cy="32" r="5" fill="#FFFFFF" fill-opacity="0.6" filter="url(#aiGlow)" />
+                  </g>
+                </svg>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-sm font-bold text-white tracking-tight">Autonomous Continuity Mesh Agent</h4>
+                  <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-beacon"></span>
+                    Operational
+                  </span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">Direct device-to-device streaming • End-to-end local cryptographic pairing</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs font-mono text-slate-300">
+              <div class="text-right">
+                <span class="text-[10px] uppercase text-slate-500 block">Mesh Latency</span>
+                <span class="text-emerald-400 font-bold">&lt; 1.8 ms</span>
+              </div>
+              <div class="h-6 w-px bg-white/10"></div>
+              <div class="text-right">
+                <span class="text-[10px] uppercase text-slate-500 block">Deduplication</span>
+                <span class="text-cyan-400 font-bold">SHA-256 Fast</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </section>
@@ -751,40 +910,133 @@
     </div>
   </div>
 
-  <!-- Storage Settings Modal -->
-  <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-xl z-50 hidden flex items-center justify-center p-4">
-    <div class="ios-glass ios-modal-anim rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-            <i data-lucide="folder" class="w-4 h-4"></i>
+  <!-- Storage Settings & First-Run Setup Modal (iOS / macOS Glassmorphic Style) -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-2xl z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="ios-glass ios-modal-anim rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl space-y-5 my-8 border border-white/10">
+      
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-cyan-500/20 to-emerald-500/20 border border-indigo-400/30 flex items-center justify-center text-cyan-400 shadow-lg shadow-indigo-500/10">
+            <i data-lucide="hard-drive" class="w-5 h-5 text-cyan-300"></i>
           </div>
-          <h3 class="text-base font-bold text-white">Storage Location</h3>
+          <div>
+            <h3 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              Storage Vault Setup
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Gigabit Ready</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Choose where FreeLanSync saves camera backups, gigabit transfers, and shared folders.
+            </p>
+          </div>
         </div>
-        <button onclick="closeSettingsModal()" class="ios-btn-icon text-slate-400 hover:text-white p-1">
+        <button onclick="closeSettingsModal()" class="ios-btn-icon text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/[0.08]" title="Close">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <p class="text-xs text-slate-400 leading-relaxed">
-        Choose where photos and videos are stored on this PC. Folders are created automatically by date.
-      </p>
-
-      <div class="space-y-1.5">
-        <label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">Backup Folder Path</label>
-        <input type="text" id="storagePathInput" class="w-full bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-400/60" placeholder="C:\Users\YourName\Pictures\FreeLanSync">
+      <!-- Quick Preset Cards Grid (Auto-Detected Locations) -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-400"></i>
+            Quick Presets (Auto-Detected)
+          </label>
+          <span class="text-[10px] text-slate-500">1-Click Selection</span>
+        </div>
+        
+        <div id="storagePresetsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <!-- Populated dynamically by loadStorageSuggestions() -->
+          <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center text-xs text-slate-400">
+            Scanning local storage drives...
+          </div>
+        </div>
       </div>
 
-      <div id="settingsFeedback" class="text-xs hidden p-2.5 rounded-xl"></div>
+      <!-- Active FilePath & Native Browse Row -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Custom Storage Directory</label>
+          <button onclick="openFolderInExplorer()" id="openInExplorerBtn" class="text-[11px] font-medium text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors">
+            <i data-lucide="external-link" class="w-3 h-3"></i>
+            <span>Open in Explorer</span>
+          </button>
+        </div>
 
-      <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.06]">
-        <button onclick="closeSettingsModal()" class="ios-btn px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-semibold">
-          Cancel
-        </button>
-        <button id="saveSettingsBtn" onclick="saveStorageSettings()" class="ios-btn px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20">
-          Save Settings
-        </button>
+        <div class="relative flex items-center gap-2">
+          <div class="relative flex-1">
+            <input type="text" id="storagePathInput" oninput="onStoragePathInputChanged()" class="w-full bg-slate-950/80 border border-white/10 rounded-2xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/30 transition-all placeholder:text-slate-600" placeholder="C:\Users\YourName\Pictures\FreeLanSync">
+          </div>
+          <button onclick="browseStorageFolder()" id="browseFolderBtn" class="ios-btn px-4 py-2.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white text-xs font-semibold flex items-center gap-2 shrink-0 transition-all" title="Browse Computer Folder">
+            <i data-lucide="folder-open" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span id="browseBtnLabel">Browse...</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Live Disk Storage Gauge & Verification Banner -->
+      <div id="storageMetricsCard" class="p-4 rounded-2xl bg-slate-950/60 border border-white/[0.08] space-y-3">
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2 text-slate-300 font-medium">
+            <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Volume Space Status</span>
+          </div>
+          <span id="storageStatsText" class="font-mono text-slate-200 font-semibold">Calculating...</span>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full h-2 rounded-full bg-slate-800/80 overflow-hidden relative">
+          <div id="storageStatsBar" class="h-full bg-gradient-to-r from-cyan-500 via-indigo-500 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+
+        <div class="flex items-center justify-between text-[11px] pt-1 border-t border-white/[0.04]">
+          <div class="flex items-center gap-1.5" id="storageWritableBadge">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-emerald-400 font-medium" id="storageWritableText">Write Permissions Verified</span>
+          </div>
+          <span class="text-slate-500 text-[10px]" id="storageUsedPercentText">0% Used</span>
+        </div>
+      </div>
+
+      <!-- Subfolder Structure Visual Preview -->
+      <div class="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.05] space-y-1.5 text-[11px] text-slate-400">
+        <p class="font-semibold text-slate-300 flex items-center gap-1.5">
+          <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i>
+          Automatic Subfolder Organization:
+        </p>
+        <div class="grid grid-cols-3 gap-2 pt-1 font-mono text-[10px]">
+          <div class="p-2 rounded-xl bg-slate-900/60 border border-white/[0.04]">
+            <span class="text-indigo-300 font-bold block">📁 /Backups</span>
+            <span class="text-slate-500">Camera roll by date</span>
+          </div>
+          <div class="p-2 rounded-xl bg-slate-900/60 border border-white/[0.04]">
+            <span class="text-cyan-300 font-bold block">⚡ /Transfers</span>
+            <span class="text-slate-500">Gigabit folder trees</span>
+          </div>
+          <div class="p-2 rounded-xl bg-slate-900/60 border border-white/[0.04]">
+            <span class="text-emerald-300 font-bold block">📥 /QuickDrop</span>
+            <span class="text-slate-500">Instant shared drops</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feedback Banner -->
+      <div id="settingsFeedback" class="text-xs hidden p-3 rounded-2xl transition-all"></div>
+
+      <!-- Footer Buttons -->
+      <div class="flex items-center justify-between pt-3 border-t border-white/[0.06]">
+        <span class="text-[11px] text-slate-500">Saved in <code class="text-slate-400">freelansync_config.json</code></span>
+        <div class="flex items-center gap-2.5">
+          <button onclick="closeSettingsModal()" class="ios-btn px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-semibold">
+            Cancel
+          </button>
+          <button id="saveSettingsBtn" onclick="saveStorageSettings()" class="ios-btn px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center gap-2">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Apply Storage</span>
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -796,9 +1048,29 @@
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>
 
-      <div class="text-center space-y-1.5">
-        <div class="inline-flex p-3 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-1">
-          <i data-lucide="smartphone" class="w-7 h-7"></i>
+      <div class="text-center space-y-2">
+        <div class="inline-flex relative group my-1">
+          <div class="absolute -inset-1.5 bg-gradient-to-r from-cyan-500/40 via-indigo-500/40 to-fuchsia-500/40 rounded-3xl blur-lg opacity-75"></div>
+          <svg class="relative w-14 h-14 drop-shadow-[0_10px_25px_rgba(99,102,241,0.5)] transition-transform duration-200 group-hover:scale-105" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2.5" y="2.5" width="59" height="59" rx="16" fill="url(#aiSqBg)" stroke="url(#aiRim)" stroke-width="1.5" />
+            <path d="M4 18 C4 10.5 10.5 4 18 4 L46 4 C53.5 4 60 10.5 60 18 C47 21 17 23 4 18 Z" fill="white" fill-opacity="0.14" />
+            <circle cx="32" cy="32" r="14" fill="#6366F1" fill-opacity="0.35" filter="url(#aiGlow)" />
+            <circle cx="32" cy="32" r="7" fill="#38BDF8" fill-opacity="0.5" filter="url(#aiGlow)" />
+            <ellipse class="ai-agent-orbit" cx="32" cy="32" rx="19.5" ry="8" transform="rotate(-30 32 32)" stroke="url(#aiOrbit1)" stroke-width="1.8" stroke-linecap="round" fill="none" />
+            <ellipse class="ai-agent-orbit" cx="32" cy="32" rx="19.5" ry="8" transform="rotate(30 32 32)" stroke="url(#aiOrbit2)" stroke-width="1.8" stroke-linecap="round" fill="none" />
+            <circle cx="47" cy="23.5" r="2" fill="#38BDF8" filter="url(#aiGlow)" />
+            <circle cx="17" cy="40.5" r="1.8" fill="#C084FC" filter="url(#aiGlow)" />
+            <g class="ai-agent-spark">
+              <path d="M32 19 L40.5 32 L32 29 L23.5 32 Z" fill="url(#aiCoreTop)" opacity="0.95" />
+              <path d="M32 45 L40.5 32 L32 35 L23.5 32 Z" fill="url(#aiCoreBottom)" opacity="0.95" />
+              <path d="M23.5 32 L32 19 L32 29 Z" fill="url(#aiCoreLeft)" opacity="0.9" />
+              <path d="M23.5 32 L32 45 L32 35 Z" fill="url(#aiCoreLeft)" opacity="0.8" />
+              <path d="M40.5 32 L32 19 L32 29 Z" fill="url(#aiCoreRight)" opacity="0.9" />
+              <path d="M40.5 32 L32 45 L32 35 Z" fill="url(#aiCoreRight)" opacity="0.8" />
+              <circle cx="32" cy="32" r="2.2" fill="#FFFFFF" />
+              <circle cx="32" cy="32" r="5" fill="#FFFFFF" fill-opacity="0.6" filter="url(#aiGlow)" />
+            </g>
+          </svg>
         </div>
         <h3 class="text-xl font-bold text-white tracking-tight">FreeLanSync Mobile App</h3>
         <p class="text-xs text-slate-400 max-w-xs mx-auto">
@@ -817,12 +1089,18 @@
         </p>
       </div>
 
-      <div class="flex flex-col sm:flex-row items-center gap-2.5">
-        <a id="directDownloadApkBtn" href="/static/FreeLanSync.apk" download="FreeLanSync-v1.1.0.apk" class="ios-btn w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs text-center flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25">
-          <i data-lucide="download" class="w-3.5 h-3.5"></i>
-          <span>Direct Download APK</span>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <a id="directDownloadApkBtn" href="/static/FreeLanSync.apk" download="FreeLanSync-v1.1.0.apk" class="ios-btn py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs text-center flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5 text-cyan-300"></i>
+          <span>Android APK</span>
         </a>
-        <button onclick="closeWelcomeModal()" class="ios-btn w-full sm:w-auto py-2.5 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-semibold text-xs">
+        <a id="directDownloadExeBtn" href="/static/FreeLanSync-Setup.exe" download="FreeLanSync-Setup.exe" class="ios-btn py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white font-bold text-xs text-center flex items-center justify-center gap-2 shadow-md">
+          <i data-lucide="monitor" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>Desktop Installer</span>
+        </a>
+      </div>
+      <div class="flex items-center justify-center pt-1">
+        <button onclick="closeWelcomeModal()" class="ios-btn py-2 px-5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-semibold text-xs">
           Open Dashboard
         </button>
       </div>
@@ -1571,10 +1849,22 @@
       }
     }
 
+    let storageValidationTimer = null;
+    let cachedStoragePresets = [];
+
     function openSettingsModal() {
       document.getElementById('settingsModal').classList.remove('hidden');
       document.getElementById('settingsFeedback').classList.add('hidden');
+      
+      // Adapt button label if running in desktop Electron
+      if (window.electronAPI && window.electronAPI.isDesktop) {
+        const lbl = document.getElementById('browseBtnLabel');
+        if (lbl) lbl.innerText = 'Browse Native...';
+      }
+
       fetchStorageSettings();
+      loadStorageSuggestions();
+      lucide.createIcons();
     }
 
     function closeSettingsModal() {
@@ -1605,6 +1895,154 @@
       }
     }
 
+    async function loadStorageSuggestions() {
+      try {
+        const res = await fetch('/api/v1/settings/storage-suggestions');
+        if (!res.ok) return;
+        const data = await res.json();
+        cachedStoragePresets = data.suggestions || [];
+        renderStoragePresets(cachedStoragePresets, document.getElementById('storagePathInput').value);
+      } catch (e) {
+        console.error('Failed to load storage suggestions', e);
+      }
+    }
+
+    function renderStoragePresets(presets, activePath) {
+      const container = document.getElementById('storagePresetsGrid');
+      if (!container) return;
+
+      if (!presets || presets.length === 0) {
+        container.innerHTML = `<div class="p-3 text-xs text-slate-500 col-span-2 text-center">No preset drives found</div>`;
+        return;
+      }
+
+      container.innerHTML = presets.map(p => {
+        const isSelected = activePath && activePath.toLowerCase().trim() === p.path.toLowerCase().trim();
+        const iconName = p.icon || 'folder';
+        return `
+          <div onclick="selectPresetPath('${p.path.replace(/\\/g, '\\\\')}')" 
+               class="preset-card cursor-pointer p-3 rounded-2xl border transition-all text-left flex items-start gap-3 ${isSelected ? 'bg-indigo-600/15 border-indigo-500/50 shadow-md shadow-indigo-600/10 ring-1 ring-indigo-400/30' : 'bg-slate-900/60 border-white/[0.07] hover:border-white/20 hover:bg-white/[0.04]'}">
+            <div class="w-8 h-8 rounded-xl ${p.is_recommended ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'} flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="${iconName}" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-bold text-white truncate">${p.title}</span>
+                ${p.is_recommended ? '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30 shrink-0">Optimal</span>' : ''}
+              </div>
+              <p class="text-[10px] text-slate-400 truncate mt-0.5">${p.subtitle || p.path}</p>
+              <div class="flex items-center gap-1.5 mt-1.5 text-[10px] font-mono">
+                <span class="text-emerald-400 font-semibold">${p.free_human} Free</span>
+                <span class="text-slate-600">•</span>
+                <span class="text-slate-400 truncate text-[9px]">${p.path}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function selectPresetPath(path) {
+      document.getElementById('storagePathInput').value = path;
+      renderStoragePresets(cachedStoragePresets, path);
+      validateStoragePath(path);
+    }
+
+    function onStoragePathInputChanged() {
+      const path = document.getElementById('storagePathInput').value.trim();
+      renderStoragePresets(cachedStoragePresets, path);
+      clearTimeout(storageValidationTimer);
+      storageValidationTimer = setTimeout(() => {
+        validateStoragePath(path);
+      }, 400);
+    }
+
+    async function validateStoragePath(path) {
+      if (!path) return;
+      try {
+        const res = await fetch('/api/v1/settings/validate-path', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({path: path})
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.valid) {
+          updateStorageMetricsUI(data.stats, data.writable, data.perm_msg);
+        } else {
+          document.getElementById('storageStatsText').innerText = 'Path Error';
+          const badge = document.getElementById('storageWritableBadge');
+          if (badge) {
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span class="text-rose-400 font-medium">${data.error || 'Invalid Directory'}</span>`;
+          }
+        }
+      } catch (e) {
+        console.error('Validation error', e);
+      }
+    }
+
+    function updateStorageMetricsUI(stats, writable, permMsg) {
+      if (!stats) return;
+      const textEl = document.getElementById('storageStatsText');
+      const barEl = document.getElementById('storageStatsBar');
+      const percentEl = document.getElementById('storageUsedPercentText');
+      const badge = document.getElementById('storageWritableBadge');
+
+      if (textEl) textEl.innerText = `${stats.free_human || '0 B'} Free / ${stats.total_human || '0 B'}`;
+      if (barEl) barEl.style.width = `${Math.min(100, stats.percent_used || 0)}%`;
+      if (percentEl) percentEl.innerText = `${stats.percent_used || 0}% Used`;
+
+      if (badge) {
+        if (writable) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span class="text-emerald-400 font-medium">Write Permissions Verified</span>`;
+        } else {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="text-amber-400 font-medium">Read-Only: ${permMsg || 'No write access'}</span>`;
+        }
+      }
+    }
+
+    async function browseStorageFolder() {
+      const current = document.getElementById('storagePathInput').value.trim();
+      if (window.electronAPI && typeof window.electronAPI.selectStorageFolder === 'function') {
+        try {
+          const result = await window.electronAPI.selectStorageFolder(current);
+          if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+            const selected = result.filePaths[0];
+            document.getElementById('storagePathInput').value = selected;
+            renderStoragePresets(cachedStoragePresets, selected);
+            validateStoragePath(selected);
+          }
+        } catch (err) {
+          console.error('Failed to open native directory dialog', err);
+        }
+      } else {
+        const manual = prompt('Enter custom folder path on this PC:', current);
+        if (manual && manual.trim()) {
+          document.getElementById('storagePathInput').value = manual.trim();
+          renderStoragePresets(cachedStoragePresets, manual.trim());
+          validateStoragePath(manual.trim());
+        }
+      }
+    }
+
+    async function openFolderInExplorer() {
+      const current = document.getElementById('storagePathInput').value.trim();
+      if (window.electronAPI && typeof window.electronAPI.openStorageFolder === 'function') {
+        await window.electronAPI.openStorageFolder(current);
+      } else {
+        try {
+          await fetch('/api/v1/settings/open-folder', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({path: current})
+          });
+        } catch (e) {
+          console.error('Error opening folder in explorer', e);
+        }
+      }
+    }
+
     async function fetchStorageSettings() {
       try {
         const res = await fetch('/api/v1/settings');
@@ -1612,6 +2050,12 @@
         const data = await res.json();
         document.getElementById('currentStorageDisplay').innerText = data.backup_dir || data.storage_dir;
         document.getElementById('storagePathInput').value = data.storage_dir;
+        if (data.stats) {
+          updateStorageMetricsUI(data.stats, data.writable, data.perm_msg);
+        }
+        if (cachedStoragePresets.length > 0) {
+          renderStoragePresets(cachedStoragePresets, data.storage_dir);
+        }
       } catch (err) {
         console.error('Failed to fetch settings', err);
       }
@@ -1624,7 +2068,7 @@
       if (!path) return;
 
       btn.disabled = true;
-      btn.innerText = 'Saving...';
+      btn.innerText = 'Applying...';
       try {
         const res = await fetch('/api/v1/settings', {
           method: 'POST',
@@ -1634,22 +2078,29 @@
         const data = await res.json();
         feedback.classList.remove('hidden');
         if (res.ok) {
-          feedback.className = 'text-xs p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-          feedback.innerText = '✓ Storage location updated successfully!';
+          feedback.className = 'text-xs p-3 rounded-2xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-2';
+          feedback.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i><span>Storage location configured and verified successfully!</span>';
           document.getElementById('currentStorageDisplay').innerText = data.storage_dir;
           showToast('Storage location updated!');
-          setTimeout(closeSettingsModal, 1200);
+          if (data.stats) {
+            updateStorageMetricsUI(data.stats, true, '');
+          }
+          fetchStorageInfo();
+          lucide.createIcons();
+          setTimeout(closeSettingsModal, 1100);
         } else {
-          feedback.className = 'text-xs p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20';
-          feedback.innerText = data.detail || 'Failed to update storage folder';
+          feedback.className = 'text-xs p-3 rounded-2xl bg-rose-500/10 text-rose-300 border border-rose-500/20 flex items-center gap-2';
+          feedback.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i><span>${data.detail || 'Failed to update storage folder'}</span>`;
+          lucide.createIcons();
         }
       } catch (err) {
         feedback.classList.remove('hidden');
-        feedback.className = 'text-xs p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        feedback.className = 'text-xs p-3 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20';
         feedback.innerText = 'Error connecting to server';
       } finally {
         btn.disabled = false;
-        btn.innerText = 'Save Settings';
+        btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i><span>Apply Storage</span>';
+        lucide.createIcons();
       }
     }
 

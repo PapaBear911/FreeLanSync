@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
 import json
+import sys
+import subprocess
 
 from .config import (
     SERVICE_NAME,
@@ -18,7 +20,12 @@ from .config import (
     get_transfers_dir,
     load_settings,
     save_settings,
-    get_local_ip
+    get_local_ip,
+    get_drive_stats,
+    test_writable,
+    get_storage_presets,
+    get_default_recommended_storage,
+    format_bytes
 )
 from .database import (
     init_db,
@@ -191,26 +198,96 @@ async def list_recent_media():
 class SettingsRequest(BaseModel):
     storage_dir: str
 
+class ValidatePathRequest(BaseModel):
+    path: str
+
+class OpenFolderRequest(BaseModel):
+    path: Optional[str] = None
+
 @app.get("/api/v1/settings")
 async def get_settings():
+    s_dir = get_storage_dir()
+    stats = get_drive_stats(s_dir)
+    writable, perm_msg = test_writable(s_dir)
     return {
-        "storage_dir": str(get_storage_dir().resolve()),
-        "backup_dir": str(get_backup_dir().resolve())
+        "storage_dir": str(s_dir.resolve()),
+        "backup_dir": str(get_backup_dir().resolve()),
+        "transfers_dir": str(get_transfers_dir().resolve()),
+        "writable": writable,
+        "perm_msg": perm_msg,
+        "stats": stats
     }
+
+@app.get("/api/v1/settings/storage-suggestions")
+async def get_storage_suggestions():
+    return {
+        "recommended_path": str(get_default_recommended_storage().resolve()),
+        "current_path": str(get_storage_dir().resolve()),
+        "suggestions": get_storage_presets()
+    }
+
+@app.post("/api/v1/settings/validate-path")
+async def validate_storage_path(req: ValidatePathRequest):
+    p_str = req.path.strip()
+    if not p_str:
+        return {"valid": False, "error": "Path cannot be empty"}
+    try:
+        p = Path(p_str).expanduser()
+        writable, perm_msg = test_writable(p)
+        stats = get_drive_stats(p)
+        return {
+            "valid": True,
+            "resolved_path": str(p.resolve()),
+            "writable": writable,
+            "perm_msg": perm_msg,
+            "stats": stats
+        }
+    except Exception as e:
+        return {"valid": False, "error": str(e)}
 
 @app.post("/api/v1/settings")
 async def update_settings(req: SettingsRequest):
-    new_path = Path(req.storage_dir.strip())
+    new_path = Path(req.storage_dir.strip()).expanduser()
     try:
         new_path.mkdir(parents=True, exist_ok=True)
+        writable, perm_msg = test_writable(new_path)
+        if not writable:
+            raise HTTPException(status_code=400, detail=f"Directory is not writable: {perm_msg}")
         save_settings({"storage_dir": str(new_path.resolve())})
+        (new_path / "Backups").mkdir(parents=True, exist_ok=True)
+        (new_path / "Transfers").mkdir(parents=True, exist_ok=True)
+        (new_path / "QuickDrop").mkdir(parents=True, exist_ok=True)
+        
+        stats = get_drive_stats(new_path)
         return {
             "success": True,
             "message": "Storage directory updated successfully",
-            "storage_dir": str(new_path.resolve())
+            "storage_dir": str(new_path.resolve()),
+            "backup_dir": str((new_path / "Backups").resolve()),
+            "transfers_dir": str((new_path / "Transfers").resolve()),
+            "stats": stats
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Cannot create or access directory: {str(e)}")
+
+@app.post("/api/v1/settings/open-folder")
+async def open_storage_folder(req: Optional[OpenFolderRequest] = None):
+    target = Path(req.path).expanduser() if (req and req.path) else get_storage_dir()
+    if not target.exists():
+        target.mkdir(parents=True, exist_ok=True)
+    resolved = str(target.resolve())
+    try:
+        if sys.platform == "win32":
+            os.startfile(resolved)
+        elif sys.platform == "darwin":
+            subprocess.run(["open", resolved])
+        else:
+            subprocess.run(["xdg-open", resolved])
+        return {"success": True, "path": resolved}
+    except Exception as e:
+        return {"success": False, "error": str(e), "path": resolved}
 
 @app.get("/api/v1/photos/view/{relative_path:path}")
 async def view_photo(relative_path: str):

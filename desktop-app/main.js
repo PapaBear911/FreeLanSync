@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, dialog, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, dialog, shell, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
 
@@ -11,25 +12,50 @@ let isQuitting = false;
 const SERVER_PORT = 8080;
 const SERVER_URL = `http://localhost:${SERVER_PORT}`;
 
+function getServerRoot() {
+  if (process.resourcesPath) {
+    const packagedServer = path.join(process.resourcesPath, 'server');
+    if (fs.existsSync(packagedServer)) {
+      return process.resourcesPath;
+    }
+  }
+  const parentDir = path.resolve(__dirname, '..');
+  if (fs.existsSync(path.join(parentDir, 'server'))) {
+    return parentDir;
+  }
+  return process.cwd();
+}
+
 function createTrayIcon() {
-  // 16x16 fallback bitmap (camera-like pixel pattern)
+  // 16x16 bitmap representing radiant AI Agent diamond core
   const size = 16;
   const buffer = Buffer.alloc(size * size * 4);
+  const cx = 7.5, cy = 7.5;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const idx = (y * size + x) * 4;
-      if (y >= 4 && y <= 13 && x >= 2 && x <= 13) {
-        // Body (indigo / blue)
-        buffer[idx] = 99;     // R
-        buffer[idx + 1] = 102; // G
-        buffer[idx + 2] = 241; // B
-        buffer[idx + 3] = 255; // Alpha
-      } else if (y >= 2 && y <= 3 && x >= 5 && x <= 10) {
-        // Flash top
-        buffer[idx] = 129;
-        buffer[idx + 1] = 140;
-        buffer[idx + 2] = 248;
-        buffer[idx + 3] = 255;
+      // Manhattan distance for diamond shape
+      const dist = Math.abs(x - cx) + Math.abs(y - cy);
+      if (dist <= 6) {
+        if (dist <= 2) {
+          // Brilliant white-cyan center glint
+          buffer[idx] = 255;
+          buffer[idx + 1] = 255;
+          buffer[idx + 2] = 255;
+          buffer[idx + 3] = 255;
+        } else if (dist <= 4) {
+          // Electric cyan-indigo gradient core
+          buffer[idx] = 56;
+          buffer[idx + 1] = 189;
+          buffer[idx + 2] = 248;
+          buffer[idx + 3] = 240;
+        } else {
+          // Deep violet-indigo rim
+          buffer[idx] = 129;
+          buffer[idx + 1] = 140;
+          buffer[idx + 2] = 248;
+          buffer[idx + 3] = 200;
+        }
       } else {
         buffer[idx + 3] = 0; // Transparent
       }
@@ -39,10 +65,11 @@ function createTrayIcon() {
 }
 
 function startPythonServer() {
-  const rootDir = path.resolve(__dirname, '..');
+  const rootDir = getServerRoot();
   console.log(`Starting Python Server in ${rootDir}...`);
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
 
-  pyProcess = spawn('python', ['-m', 'uvicorn', 'server.main:app', '--host', '0.0.0.0', '--port', `${SERVER_PORT}`], {
+  pyProcess = spawn(pythonCmd, ['-m', 'uvicorn', 'server.main:app', '--host', '0.0.0.0', '--port', `${SERVER_PORT}`], {
     cwd: rootDir,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe']
@@ -95,17 +122,20 @@ function waitForServer(callback, attempts = 30) {
 }
 
 function createWindow() {
+  const iconPath = path.join(__dirname, 'build', 'icon.png');
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 820,
-    minWidth: 800,
-    minHeight: 600,
+    width: 1240,
+    height: 840,
+    minWidth: 840,
+    minHeight: 620,
     title: 'FreeLanSync Continuity & Gigabit Hub',
     backgroundColor: '#020617',
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
 
@@ -169,6 +199,35 @@ function setupTray() {
   });
 }
 
+function setupIpcHandlers() {
+  ipcMain.handle('select-storage-folder', async (event, currentPath) => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select FreeLanSync Storage Folder',
+        defaultPath: currentPath || undefined,
+        properties: ['openDirectory', 'createDirectory', 'promptToCreate']
+      });
+      return result;
+    } catch (err) {
+      console.error('Error in select-storage-folder dialog:', err);
+      return { canceled: true, filePaths: [] };
+    }
+  });
+
+  ipcMain.handle('open-storage-folder', async (event, folderPath) => {
+    try {
+      if (folderPath) {
+        return await shell.openPath(folderPath);
+      }
+    } catch (err) {
+      console.error('Error in open-storage-folder:', err);
+    }
+    return '';
+  });
+
+  ipcMain.handle('get-app-version', () => app.getVersion());
+}
+
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -183,6 +242,7 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    setupIpcHandlers();
     startPythonServer();
     setupTray();
 
