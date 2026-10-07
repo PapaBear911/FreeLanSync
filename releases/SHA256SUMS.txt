@@ -1,3 +1,3 @@
-﻿8508c5cfa60ad9c2678fc30306bb28bb25edfcf46624f5b8f20d11a98e40c03f  FreeLanSync-Desktop-Portable-1.1.0.exe
-2c1b353f230725e72c51508c29127b4c1588cf943e08392ffa0095be891fc099  FreeLanSync-Desktop-Setup-1.1.0.exe
+cd3fc3dd6d04e99749c2c6a4b7940ff17e76a2ce4f431e56c367cf077414b16f  FreeLanSync-Desktop-Setup-1.1.0.exe
+e79a6baa400518a533cf2a335e32f69e78ce3fea37953f3f8e6cb0f2b7452149  FreeLanSync-Desktop-Portable-1.1.0.exe
 1f919c7292c1708f974e0262fc7640b40e5e4df1a963307f40eb9ce8026989d6  FreeLanSync-v1.1.0.apk

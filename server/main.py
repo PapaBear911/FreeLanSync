@@ -47,6 +47,18 @@ async def lifespan(app: FastAPI):
     # Startup: Initialize Database and mDNS
     init_db()
     mdns_advertiser.start()
+    
+    # Ensure static/FreeLanSync.apk exists if possible
+    apk_found = find_apk_file()
+    target_apk = Path(__file__).resolve().parent / "static" / "FreeLanSync.apk"
+    if apk_found and not target_apk.exists():
+        try:
+            import shutil
+            shutil.copy2(apk_found, target_apk)
+            print(f"[{SERVICE_NAME}] Seeded {target_apk} from {apk_found}")
+        except Exception:
+            pass
+            
     print(f"[{SERVICE_NAME}] Ready at http://{get_local_ip()}:{SERVER_PORT}")
     yield
     # Shutdown: Clean up mDNS
@@ -67,6 +79,48 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def find_apk_file() -> Optional[Path]:
+    """Find the packaged or compiled FreeLanSync Android APK across candidate locations."""
+    base_repo = Path(__file__).resolve().parent.parent
+    candidates = [
+        Path(__file__).resolve().parent / "static" / "FreeLanSync.apk",
+        base_repo / "server" / "static" / "FreeLanSync.apk",
+        base_repo / "releases" / "FreeLanSync-v1.1.0.apk",
+        base_repo / "releases" / "FreeLanSync.apk",
+        base_repo / "android" / "app" / "build" / "outputs" / "apk" / "release" / "app-release.apk",
+        Path(__file__).resolve().parent.parent.parent / "releases" / "FreeLanSync-v1.1.0.apk",
+        Path.home() / "Downloads" / "FreeLanSync-v1.1.0.apk",
+        Path.home() / "Downloads" / "FreeLanSync.apk"
+    ]
+    for cand in candidates:
+        try:
+            if cand.exists() and cand.is_file() and cand.stat().st_size > 1000000:
+                return cand
+        except Exception:
+            pass
+    return None
+
+@app.get("/static/FreeLanSync.apk")
+@app.get("/FreeLanSync.apk")
+@app.get("/download-apk")
+@app.get("/api/v1/download-apk")
+async def download_apk_endpoint():
+    apk_path = find_apk_file()
+    if not apk_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="FreeLanSync.apk not found. Please build or place the APK into server/static/."
+        )
+    return FileResponse(
+        path=str(apk_path),
+        media_type="application/vnd.android.package-archive",
+        filename="FreeLanSync-v1.1.0.apk",
+        headers={
+            "Content-Disposition": 'attachment; filename="FreeLanSync-v1.1.0.apk"',
+            "Cache-Control": "no-cache"
+        }
+    )
 
 # Mount static files
 static_dir = Path(__file__).resolve().parent / "static"

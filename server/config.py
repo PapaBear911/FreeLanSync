@@ -6,25 +6,88 @@ import json
 
 # Base Directories
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_FILE = BASE_DIR / "freelansync_config.json"
-LEGACY_CONFIG_FILE = BASE_DIR / "photosync_config.json"
+
+def get_app_data_dir() -> Path:
+    """Return a guaranteed writable application data directory for database and config."""
+    # 1. Environment variable override
+    env_dir = os.getenv("FREELANSYNC_DATA_DIR")
+    if env_dir:
+        p = Path(env_dir)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        except Exception:
+            pass
+
+    # 2. Check if BASE_DIR is writable AND not inside system directories (e.g. dev workspace)
+    base_str = str(BASE_DIR).lower()
+    in_system_dir = any(s in base_str for s in ["program files", "program files (x86)", "windows\\system32", "/usr/", "/opt/"])
+    if not in_system_dir:
+        try:
+            writable, _ = test_writable(BASE_DIR)
+            if writable:
+                return BASE_DIR
+        except Exception:
+            pass
+
+    # 3. Standard OS user application data folder
+    if os.name == "nt":
+        app_data = os.getenv("APPDATA")
+        base = Path(app_data) if app_data else Path.home() / "AppData" / "Roaming"
+        data_dir = base / "FreeLanSync"
+    else:
+        data_dir = Path.home() / ".freelansync"
+
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir
+    except Exception:
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "FreeLanSync"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        return temp_dir
+
+DATA_DIR = get_app_data_dir()
+CONFIG_FILE = DATA_DIR / "freelansync_config.json"
+LEGACY_CONFIG_FILE = DATA_DIR / "photosync_config.json"
+
+def get_config_file_path() -> Path:
+    data_dir = get_app_data_dir()
+    new_cfg = data_dir / "freelansync_config.json"
+    if new_cfg.exists():
+        return new_cfg
+    legacy_cfg = data_dir / "photosync_config.json"
+    if legacy_cfg.exists():
+        return legacy_cfg
+    base_cfg = BASE_DIR / "freelansync_config.json"
+    if base_cfg.exists():
+        return base_cfg
+    base_legacy = BASE_DIR / "photosync_config.json"
+    if base_legacy.exists():
+        return base_legacy
+    return new_cfg
 
 def load_settings() -> dict:
-    default_storage = str((BASE_DIR / "storage").resolve())
-    target_cfg = CONFIG_FILE if CONFIG_FILE.exists() else LEGACY_CONFIG_FILE
-    if target_cfg.exists():
+    default_storage = str(get_default_recommended_storage().resolve())
+    cfg_file = get_config_file_path()
+    if cfg_file.exists():
         try:
-            with open(target_cfg, "r", encoding="utf-8") as f:
+            with open(cfg_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return {
-                    "storage_dir": data.get("storage_dir", default_storage)
-                }
+                custom_storage = data.get("storage_dir")
+                if custom_storage:
+                    lowered = custom_storage.lower()
+                    if not any(s in lowered for s in ["program files", "system32"]):
+                        return {"storage_dir": custom_storage}
         except Exception:
             pass
     return {"storage_dir": default_storage}
 
 def save_settings(settings: dict):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+    data_dir = get_app_data_dir()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    target_file = data_dir / "freelansync_config.json"
+    with open(target_file, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2)
 
 def format_bytes(size: int) -> str:
@@ -155,9 +218,19 @@ def get_storage_presets() -> list[dict]:
 def get_storage_dir() -> Path:
     settings = load_settings()
     custom_dir = os.getenv("FREELANSYNC_STORAGE_DIR", os.getenv("PHOTOSYNC_STORAGE_DIR", settings.get("storage_dir")))
-    p = Path(custom_dir)
-    p.mkdir(parents=True, exist_ok=True)
-    return p
+    p = Path(custom_dir) if custom_dir else get_default_recommended_storage()
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        writable, _ = test_writable(p)
+        if not writable:
+            fallback = get_default_recommended_storage()
+            fallback.mkdir(parents=True, exist_ok=True)
+            return fallback
+        return p
+    except Exception:
+        fallback = get_default_recommended_storage()
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
 
 def get_backup_dir() -> Path:
     p = get_storage_dir() / "Backups"
@@ -175,10 +248,19 @@ def get_transfers_dir() -> Path:
     return p
 
 def get_database_path() -> Path:
-    legacy_db = BASE_DIR / "photosync.db"
-    new_db = BASE_DIR / "freelansync.db"
+    data_dir = get_app_data_dir()
+    new_db = data_dir / "freelansync.db"
+    legacy_db = data_dir / "photosync.db"
     if legacy_db.exists() and not new_db.exists():
         return legacy_db
+    if data_dir != BASE_DIR and not new_db.exists():
+        base_db = BASE_DIR / "freelansync.db"
+        if base_db.exists():
+            try:
+                import shutil
+                shutil.copy2(base_db, new_db)
+            except Exception:
+                pass
     return new_db
 
 STORAGE_DIR = get_storage_dir()

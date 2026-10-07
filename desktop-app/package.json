@@ -29,8 +29,7 @@
           "**/*",
           "!**/__pycache__/**",
           "!**/*.pyc",
-          "!**/static/*.exe",
-          "!**/static/*.apk"
+          "!**/static/*.exe"
         ]
       }
     ],

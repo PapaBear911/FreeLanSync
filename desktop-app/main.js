@@ -64,28 +64,91 @@ function createTrayIcon() {
   return nativeImage.createFromBuffer(buffer, { width: size, height: size });
 }
 
+function findPythonCommand() {
+  if (process.env.PYTHON && fs.existsSync(process.env.PYTHON)) {
+    return process.env.PYTHON;
+  }
+  const candidates = [
+    'python',
+    'python3',
+    'py',
+    'C:\\Python314\\python.exe',
+    'C:\\Python313\\python.exe',
+    'C:\\Python312\\python.exe',
+    'C:\\Python311\\python.exe',
+    'C:\\Python310\\python.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python314', 'python.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python313', 'python.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'python.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python311', 'python.exe')
+  ];
+  for (const cmd of candidates) {
+    if (cmd.includes('\\') && fs.existsSync(cmd)) {
+      return cmd;
+    }
+  }
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
 function startPythonServer() {
   const rootDir = getServerRoot();
-  console.log(`Starting Python Server in ${rootDir}...`);
-  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  const pythonCmd = findPythonCommand();
+  const userDataDir = app.getPath('userData');
+  const dataDir = path.join(userDataDir, 'data');
+  const logFile = path.join(userDataDir, 'server.log');
 
-  pyProcess = spawn(pythonCmd, ['-m', 'uvicorn', 'server.main:app', '--host', '0.0.0.0', '--port', `${SERVER_PORT}`], {
-    cwd: rootDir,
-    windowsHide: true,
-    stdio: ['ignore', 'pipe', 'pipe']
-  });
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (e) {}
 
-  pyProcess.stdout.on('data', (data) => {
-    console.log(`[Python stdout]: ${data}`);
-  });
+  const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+  const startMsg = `\n[${new Date().toISOString()}] Launching FreeLanSync Server...\nRoot: ${rootDir}\nPython: ${pythonCmd}\nData: ${dataDir}\n`;
+  console.log(startMsg);
+  logStream.write(startMsg);
 
-  pyProcess.stderr.on('data', (data) => {
-    console.log(`[Python stderr]: ${data}`);
-  });
+  const env = {
+    ...process.env,
+    FREELANSYNC_DATA_DIR: dataDir,
+    PYTHONUNBUFFERED: '1',
+    PYTHONIOENCODING: 'utf-8'
+  };
 
-  pyProcess.on('close', (code) => {
-    console.log(`Python process exited with code ${code}`);
-  });
+  try {
+    pyProcess = spawn(pythonCmd, ['-m', 'uvicorn', 'server.main:app', '--host', '0.0.0.0', '--port', `${SERVER_PORT}`], {
+      cwd: rootDir,
+      windowsHide: true,
+      env: env,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    pyProcess.stdout.on('data', (data) => {
+      const msg = `[Python stdout]: ${data}`;
+      console.log(msg);
+      logStream.write(msg);
+    });
+
+    pyProcess.stderr.on('data', (data) => {
+      const msg = `[Python stderr]: ${data}`;
+      console.error(msg);
+      logStream.write(msg);
+    });
+
+    pyProcess.on('close', (code) => {
+      const msg = `Python process exited with code ${code}\n`;
+      console.log(msg);
+      logStream.write(msg);
+      pyProcess = null;
+    });
+
+    pyProcess.on('error', (err) => {
+      const msg = `Failed to start Python process: ${err.message}\n`;
+      console.error(msg);
+      logStream.write(msg);
+    });
+  } catch (err) {
+    console.error('Spawn exception:', err);
+    logStream.write(`Spawn exception: ${err.message}\n`);
+  }
 }
 
 function stopPythonServer() {
@@ -103,16 +166,16 @@ function stopPythonServer() {
   }
 }
 
-function waitForServer(callback, attempts = 30) {
+function waitForServer(callback, attempts = 40) {
   if (attempts <= 0) {
-    console.warn('Server start timeout, attempting to open window anyway...');
-    callback();
+    console.warn('Server start timeout, opening window...');
+    callback(false);
     return;
   }
 
   http.get(`${SERVER_URL}/api/v1/ping`, (res) => {
     if (res.statusCode === 200) {
-      callback();
+      callback(true);
     } else {
       setTimeout(() => waitForServer(callback, attempts - 1), 500);
     }
@@ -137,6 +200,65 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.warn(`Dashboard load pending: ${errorDescription} (${errorCode})`);
+    const errorHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>FreeLanSync Connecting...</title>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    .box {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 32px 40px;
+      border-radius: 16px;
+      max-width: 480px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    h2 { margin: 0 0 12px; font-size: 20px; color: #38bdf8; }
+    p { color: #94a3b8; font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+    button {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #4338ca; }
+    .status { font-family: monospace; font-size: 11px; color: #64748b; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Starting FreeLanSync Engine</h2>
+    <p>Connecting to background transfer engine on port ${SERVER_PORT}... If launching for the first time, this may take a few seconds.</p>
+    <button onclick="location.href='${SERVER_URL}'">Retry Connection</button>
+    <div class="status">${errorDescription}</div>
+  </div>
+  <script>
+    setTimeout(() => { location.href = '${SERVER_URL}'; }, 2000);
+  </script>
+</body>
+</html>`;
+    mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(errorHtml));
   });
 
   mainWindow.loadURL(SERVER_URL);
@@ -238,6 +360,7 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
+      mainWindow.loadURL(SERVER_URL);
     }
   });
 

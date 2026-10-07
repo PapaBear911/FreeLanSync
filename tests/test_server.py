@@ -157,3 +157,34 @@ def test_tampered_hash_rejection():
     )
     assert upload_resp.status_code == 400
     assert "mismatch" in upload_resp.json()["detail"].lower()
+
+def test_apk_download_endpoints():
+    # Test /static/FreeLanSync.apk
+    res = client.get("/static/FreeLanSync.apk")
+    assert res.status_code == 200
+    assert res.headers.get("content-type") == "application/vnd.android.package-archive"
+    assert len(res.content) > 1000000
+
+    # Test /FreeLanSync.apk
+    res2 = client.get("/FreeLanSync.apk")
+    assert res2.status_code == 200
+    assert res2.headers.get("content-type") == "application/vnd.android.package-archive"
+
+    # Test /download-apk
+    res3 = client.get("/download-apk")
+    assert res3.status_code == 200
+    assert res3.headers.get("content-type") == "application/vnd.android.package-archive"
+
+def test_system_dir_protection(monkeypatch, tmp_path):
+    from server.config import get_app_data_dir, get_storage_dir
+    # Simulate BASE_DIR being in Program Files
+    prog_files_fake = Path("C:/Program Files/FreeLanSyncDesktop/FreeLanSync Desktop/resources")
+    monkeypatch.setattr("server.config.BASE_DIR", prog_files_fake)
+
+    # Should safely return user appdata / home path and NOT the Program Files path
+    safe_data_dir = get_app_data_dir()
+    assert "program files" not in str(safe_data_dir).lower()
+
+    safe_storage = get_storage_dir()
+    assert "program files" not in str(safe_storage).lower()
+
