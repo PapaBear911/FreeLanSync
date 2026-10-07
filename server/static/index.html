@@ -38,6 +38,10 @@
       </div>
 
       <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="openWelcomeModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all">
+          <i data-lucide="smartphone" class="w-4 h-4"></i>
+          <span>Get Android App</span>
+        </button>
         <button onclick="openSettingsModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors">
           <i data-lucide="settings" class="w-4 h-4 text-indigo-400"></i>
           <span>Storage Settings</span>
@@ -214,14 +218,63 @@
 
       <div id="settingsFeedback" class="text-xs hidden p-2 rounded-lg"></div>
 
-      <div class="flex justify-end gap-3 pt-2">
-        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
-          Cancel
-        </button>
-        <button onclick="saveStorageSettings()" id="saveSettingsBtn" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30">
-          Save Settings
+  <!-- Welcome Popup Modal (Direct APK Download via QR) -->
+  <div id="welcomeModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative space-y-6">
+      
+      <!-- Close button -->
+      <button onclick="closeWelcomeModal()" class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Welcome Header -->
+      <div class="text-center space-y-2">
+        <div class="inline-flex p-3 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner">
+          <i data-lucide="smartphone" class="w-8 h-8"></i>
+        </div>
+        <h3 class="text-2xl font-black text-white tracking-tight">Welcome to PhotoSync!</h3>
+        <p class="text-sm text-slate-400 max-w-sm mx-auto">
+          Scan the QR code below with your Android camera or phone browser to directly download and install the app.
+        </p>
+      </div>
+
+      <!-- QR Code Container -->
+      <div class="flex flex-col items-center justify-center p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-3">
+        <div id="welcomeApkQrContainer" class="flex justify-center p-2 bg-white rounded-xl shadow-lg">
+          <div class="w-44 h-44 bg-slate-200 animate-pulse rounded-lg flex items-center justify-center text-xs text-slate-500">
+            Generating APK QR...
+          </div>
+        </div>
+        <div class="text-center">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
+            Local Wi-Fi Direct Download
+          </span>
+          <p class="text-xs text-slate-400 mt-2 font-mono truncate max-w-xs" id="welcomeApkUrlText">
+            http://.../static/PhotoSync.apk
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row items-center gap-3">
+        <a id="directDownloadApkBtn" href="/static/PhotoSync.apk" download="PhotoSync-v1.0.0.apk" class="w-full sm:flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm text-center flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Direct Download APK</span>
+        </a>
+        <button onclick="closeWelcomeModal()" class="w-full sm:w-auto py-3 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-colors">
+          Got it, Proceed
         </button>
       </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs text-slate-500">
+        <span>Version 1.0.0 Standalone APK</span>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-slate-400">
+          <input type="checkbox" id="dontShowWelcomeAgain" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+          <span>Don't show on launch</span>
+        </label>
+      </div>
+
     </div>
   </div>
 
@@ -240,6 +293,21 @@
       return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     }
 
+    let apkDownloadUrl = '';
+
+    function openWelcomeModal() {
+      document.getElementById('welcomeModal').classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function closeWelcomeModal() {
+      document.getElementById('welcomeModal').classList.add('hidden');
+      const dontShow = document.getElementById('dontShowWelcomeAgain').checked;
+      if (dontShow) {
+        localStorage.setItem('photosync_hide_welcome', 'true');
+      }
+    }
+
     async function fetchPairingInfo() {
       try {
         const res = await fetch('/api/v1/pairing/info');
@@ -248,6 +316,16 @@
         document.getElementById('pinCode').innerText = data.pin;
         document.getElementById('qrContainer').innerHTML = data.qr_svg;
         document.getElementById('serverAddress').innerText = `http://${data.host}:${data.port}`;
+
+        // Populate Welcome APK QR Code & Link
+        if (data.apk_qr_svg) {
+          document.getElementById('welcomeApkQrContainer').innerHTML = data.apk_qr_svg;
+        }
+        if (data.apk_download_url) {
+          apkDownloadUrl = data.apk_download_url;
+          document.getElementById('welcomeApkUrlText').innerText = data.apk_download_url;
+          document.getElementById('directDownloadApkBtn').href = data.apk_download_url;
+        }
         
         let seconds = data.expires_in;
         document.getElementById('pinTimer').innerText = `Expires in ${Math.floor(seconds / 60)}m ${seconds % 60}s`;
@@ -414,6 +492,11 @@
       lucide.createIcons();
       refreshData();
       setInterval(refreshData, 10000);
+
+      // Auto-show welcome modal on first visit unless disabled
+      if (!localStorage.getItem('photosync_hide_welcome')) {
+        setTimeout(openWelcomeModal, 500);
+      }
     });
   </script>
 </body>

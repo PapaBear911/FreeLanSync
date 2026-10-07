@@ -112,9 +112,13 @@ async def ping():
 async def get_pairing_info():
     info = pairing_manager.get_pairing_info()
     qr_svg = pairing_manager.generate_qr_svg()
+    apk_qr_svg = pairing_manager.generate_apk_download_qr_svg()
+    local_ip = get_local_ip()
     return {
         **info,
-        "qr_svg": qr_svg
+        "qr_svg": qr_svg,
+        "apk_qr_svg": apk_qr_svg,
+        "apk_download_url": f"http://{local_ip}:{SERVER_PORT}/static/PhotoSync.apk"
     }
 
 @app.post("/api/v1/pairing/verify", response_model=PairResponse)
