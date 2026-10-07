@@ -25,8 +25,8 @@ Get-FileHash -Algorithm SHA256 <filename>
 
 Checksums:
 ```text
-be745b259f2f65ba32ed5f1fe5a7c69597553ef341e0c8f0bed3d83c62a53803  FreeLanSync-Desktop-Setup-1.1.0.exe
-983b1021621c05146d79c3a3a635129683c56cbd666e8118b003eca0a395e6ab  FreeLanSync-Desktop-Portable-1.1.0.exe
+2c1b353f230725e72c51508c29127b4c1588cf943e08392ffa0095be891fc099  FreeLanSync-Desktop-Setup-1.1.0.exe
+8508c5cfa60ad9c2678fc30306bb28bb25edfcf46624f5b8f20d11a98e40c03f  FreeLanSync-Desktop-Portable-1.1.0.exe
 1f919c7292c1708f974e0262fc7640b40e5e4df1a963307f40eb9ce8026989d6  FreeLanSync-v1.1.0.apk
 ```
 
