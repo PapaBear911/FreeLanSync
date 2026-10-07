@@ -13,6 +13,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Anime.js Engine (Tactile UI & Spring Dynamics) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -172,6 +174,59 @@
       animation: ai-shimmer-sweep 4s linear infinite;
     }
 
+    /* Magic UI: Conic Border Beam */
+    .border-beam-active {
+      position: relative;
+    }
+    .border-beam-active::before {
+      content: "";
+      position: absolute;
+      inset: -1.5px;
+      border-radius: inherit;
+      padding: 1.5px;
+      background: conic-gradient(from var(--beam-angle, 0deg), transparent 0deg, #38BDF8 60deg, #818CF8 120deg, transparent 180deg);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+      animation: border-beam-rotate 4s linear infinite;
+      z-index: 2;
+    }
+    @property --beam-angle {
+      syntax: '<angle>';
+      initial-value: 0deg;
+      inherits: false;
+    }
+    @keyframes border-beam-rotate {
+      to { --beam-angle: 360deg; }
+    }
+
+    /* Impeccable Accessibility: Accessible Focus Visible States */
+    :focus-visible {
+      outline: 2px solid #818CF8 !important;
+      outline-offset: 2px !important;
+    }
+
+    /* Accessible Interactive Hit Targets */
+    .touch-target {
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Impeccable Accessibility: Prefers Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
@@ -324,56 +379,56 @@
           </div>
 
           <!-- Storage Setup Button -->
-          <button onclick="openSettingsModal()" class="ios-btn hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold" title="Setup Storage Directory">
+          <button onclick="openSettingsModal()" aria-label="Open Storage Setup" class="ios-btn hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold" title="Setup Storage Directory">
             <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-cyan-400"></i>
             <span>Storage Vault</span>
           </button>
 
           <!-- Download Apps Pill -->
-          <button onclick="openWelcomeModal()" class="ios-btn flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/25">
+          <button onclick="openWelcomeModal()" aria-label="Download Client Applications" class="ios-btn flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/25">
             <i data-lucide="download" class="w-3.5 h-3.5"></i>
             <span class="hidden md:inline">Download Apps</span>
           </button>
 
           <!-- Settings Button -->
-          <button onclick="openSettingsModal()" class="ios-btn-icon w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Settings">
+          <button onclick="openSettingsModal()" aria-label="Open Settings" class="ios-btn-icon w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Settings">
             <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
           </button>
 
           <!-- Refresh Button -->
-          <button onclick="refreshData()" class="ios-btn-icon w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Refresh">
+          <button onclick="refreshData()" aria-label="Refresh Dashboard" class="ios-btn-icon w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Refresh">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       </div>
 
       <!-- Segmented Pill Tabs (iOS Control Center Style) -->
-      <div class="py-2.5 flex items-center overflow-x-auto no-scrollbar">
-        <div class="inline-flex p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-xl gap-1">
+      <nav aria-label="Dashboard Sections" class="py-2.5 flex items-center overflow-x-auto no-scrollbar">
+        <div role="tablist" class="inline-flex p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-xl gap-1">
           
-          <button onclick="switchTab('vault')" id="tabBtnVault" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 bg-white/[0.12] text-white shadow-sm border border-white/10">
+          <button role="tab" aria-selected="true" aria-controls="tabSectionVault" onclick="switchTab('vault')" id="tabBtnVault" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 bg-white/[0.12] text-white shadow-sm border border-white/10">
             <i data-lucide="image" class="w-3.5 h-3.5 text-indigo-400"></i>
             <span>Photos &amp; Media</span>
           </button>
 
-          <button onclick="switchTab('notifications')" id="tabBtnNotifications" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.05]">
+          <button role="tab" aria-selected="false" aria-controls="tabSectionNotifications" onclick="switchTab('notifications')" id="tabBtnNotifications" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.05]">
             <i data-lucide="bell" class="w-3.5 h-3.5 text-violet-400"></i>
             <span>Notifications</span>
             <span id="notifBadge" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-500 text-white">0</span>
           </button>
 
-          <button onclick="switchTab('quickdrop')" id="tabBtnQuickdrop" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.05]">
+          <button role="tab" aria-selected="false" aria-controls="tabSectionQuickdrop" onclick="switchTab('quickdrop')" id="tabBtnQuickdrop" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.05]">
             <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-cyan-400"></i>
             <span>Quick-Drop &amp; Clipboard</span>
           </button>
 
-          <button onclick="switchTab('hud')" id="tabBtnHud" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.05]">
+          <button role="tab" aria-selected="false" aria-controls="tabSectionHud" onclick="switchTab('hud')" id="tabBtnHud" class="ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.05]">
             <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i>
             <span>Control Center</span>
           </button>
 
         </div>
-      </div>
+      </nav>
 
     </div>
   </header>
@@ -581,6 +636,70 @@
     <!-- TAB 3: QUICK-DROP & UNIVERSAL CLIPBOARD    -->
     <!-- ========================================== -->
     <section id="tabSectionQuickdrop" class="tab-content hidden space-y-6">
+      
+      <!-- Magic UI Animated Beam: Realtime Gigabit P2P Network Topology -->
+      <div class="ios-glass border-beam-active rounded-3xl p-5 relative overflow-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 pulse-beacon"></span>
+              Zero-Cloud Gigabit Mesh
+            </span>
+            <span class="text-[11px] text-slate-400 hidden sm:inline">Direct High-Performance Socket</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-slate-400 font-mono">
+            <span class="flex items-center gap-1 text-emerald-400"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> End-to-End Encrypted</span>
+            <span class="hidden md:inline text-cyan-400 font-bold">&lt; 1ms Latency</span>
+          </div>
+        </div>
+
+        <!-- Animated Beam Graphic (Magic UI / React Bits pattern) -->
+        <div class="relative flex items-center justify-between px-5 py-4 bg-slate-950/40 rounded-2xl border border-white/[0.04] overflow-hidden">
+          <!-- Node A: Host PC -->
+          <div class="flex items-center gap-3 relative z-10">
+            <div class="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shadow-[0_0_16px_rgba(99,102,241,0.25)]">
+              <i data-lucide="laptop" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white">FreeLanSync Host</p>
+              <p class="text-[10px] text-indigo-300 font-mono" id="beamHostIp">Local Machine</p>
+            </div>
+          </div>
+
+          <!-- Connecting Beam SVG with Travelling Anime.js Energy Beacons -->
+          <div class="flex-1 mx-3 sm:mx-8 relative h-10 flex items-center justify-center">
+            <svg class="w-full h-8 overflow-visible" preserveAspectRatio="none" viewBox="0 0 300 24" fill="none">
+              <path d="M 0 12 L 300 12" stroke="rgba(255, 255, 255, 0.12)" stroke-width="2" stroke-dasharray="4 4" />
+              <path id="beamSvgLine" d="M 0 12 L 300 12" stroke="url(#beamGrad)" stroke-width="3" stroke-linecap="round" />
+              <circle id="beamParticle1" cx="30" cy="12" r="3.5" fill="#38BDF8" filter="drop-shadow(0 0 8px #38BDF8)" />
+              <circle id="beamParticle2" cx="270" cy="12" r="3" fill="#818CF8" filter="drop-shadow(0 0 6px #818CF8)" />
+              <defs>
+                <linearGradient id="beamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.25" />
+                  <stop offset="50%" stop-color="#818CF8" stop-opacity="0.9" />
+                  <stop offset="100%" stop-color="#30D158" stop-opacity="0.25" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="absolute inset-x-0 -bottom-1 flex justify-center pointer-events-none">
+              <span class="px-2 py-0.5 rounded-full bg-slate-900/90 border border-white/10 text-[9px] font-mono text-cyan-300 shadow">
+                ⚡ 1000 Mbps Wi-Fi Link
+              </span>
+            </div>
+          </div>
+
+          <!-- Node B: Android Phone -->
+          <div class="flex items-center gap-3 relative z-10">
+            <div class="text-right hidden sm:block">
+              <p class="text-xs font-bold text-white" id="beamDeviceName">Mobile Client</p>
+              <p class="text-[10px] text-emerald-300 font-mono">P2P Ready</p>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300 shadow-[0_0_16px_rgba(48,209,88,0.25)]">
+              <i data-lucide="smartphone" class="w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+      </div>
       
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -811,13 +930,13 @@
 
             <!-- Playback Controls (Apple Tactile Buttons) -->
             <div class="flex items-center justify-center gap-6 pt-1">
-              <button onclick="sendMediaCommand('PREV')" class="ios-btn-icon w-10 h-10 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Previous Track">
+              <button onclick="sendMediaCommand('PREV')" aria-label="Previous Track" class="ios-btn-icon w-10 h-10 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Previous Track">
                 <i data-lucide="skip-back" class="w-4 h-4"></i>
               </button>
-              <button onclick="toggleMediaPlayPause()" id="mediaPlayPauseBtn" class="ios-btn w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30" title="Play / Pause">
+              <button onclick="toggleMediaPlayPause()" id="mediaPlayPauseBtn" aria-label="Play or Pause Track" class="ios-btn w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30" title="Play / Pause">
                 <i data-lucide="play" id="mediaPlayPauseIcon" class="w-5 h-5 ml-0.5"></i>
               </button>
-              <button onclick="sendMediaCommand('NEXT')" class="ios-btn-icon w-10 h-10 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Next Track">
+              <button onclick="sendMediaCommand('NEXT')" aria-label="Next Track" class="ios-btn-icon w-10 h-10 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Next Track">
                 <i data-lucide="skip-forward" class="w-4 h-4"></i>
               </button>
             </div>
@@ -895,7 +1014,7 @@
         <i data-lucide="download" class="w-3.5 h-3.5"></i>
         <span>Download</span>
       </a>
-      <button onclick="closePhotoLightbox()" class="ios-btn-icon w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white">
+      <button onclick="closePhotoLightbox()" aria-label="Close photo lightbox" class="ios-btn-icon w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white">
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>
     </div>
@@ -930,7 +1049,7 @@
             </p>
           </div>
         </div>
-        <button onclick="closeSettingsModal()" class="ios-btn-icon text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/[0.08]" title="Close">
+        <button onclick="closeSettingsModal()" aria-label="Close storage settings" class="ios-btn-icon text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/[0.08]" title="Close">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -1044,7 +1163,7 @@
   <div id="welcomeModal" class="fixed inset-0 bg-black/75 backdrop-blur-xl z-50 hidden flex items-center justify-center p-4">
     <div class="ios-glass ios-modal-anim rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative space-y-5">
       
-      <button onclick="closeWelcomeModal()" class="absolute top-5 right-5 ios-btn-icon text-slate-400 hover:text-white p-1">
+      <button onclick="closeWelcomeModal()" aria-label="Close welcome modal" class="absolute top-5 right-5 ios-btn-icon text-slate-400 hover:text-white p-1">
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>
 
@@ -1171,28 +1290,134 @@
       return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     }
 
+    // ==========================================
+    // Anime.js Motion Engine & Micro-Interactions
+    // ==========================================
+    function animateCounter(elementId, targetValue, duration = 700) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      if (typeof anime === 'undefined') {
+        el.innerText = targetValue.toLocaleString();
+        return;
+      }
+      const rawCurrent = parseInt(el.innerText.replace(/[^0-9]/g, ''), 10) || 0;
+      if (rawCurrent === targetValue) return;
+
+      const obj = { count: rawCurrent };
+      anime({
+        targets: obj,
+        count: targetValue,
+        round: 1,
+        easing: 'easeOutExpo',
+        duration: duration,
+        update: function() {
+          el.innerText = obj.count.toLocaleString();
+        }
+      });
+    }
+
+    function animateTabTransition(sectionEl) {
+      if (!sectionEl || typeof anime === 'undefined') return;
+      const elements = sectionEl.querySelectorAll('.ios-glass, .border-beam-active, .ios-glass-interactive, #notificationsFeed > div, #mediaGallery > div');
+      if (elements.length === 0) return;
+
+      anime({
+        targets: elements,
+        opacity: [0, 1],
+        translateY: [12, 0],
+        scale: [0.99, 1],
+        delay: anime.stagger(30),
+        duration: 380,
+        easing: 'easeOutCubic'
+      });
+    }
+
+    let beamTimeline = null;
+    function startBeamAnimation() {
+      if (typeof anime === 'undefined') return;
+      const p1 = document.getElementById('beamParticle1');
+      const p2 = document.getElementById('beamParticle2');
+      if (!p1 || !p2) return;
+
+      if (!beamTimeline) {
+        beamTimeline = anime.timeline({
+          loop: true,
+          direction: 'alternate'
+        });
+
+        beamTimeline
+          .add({
+            targets: '#beamParticle1',
+            cx: [30, 270],
+            duration: 1600,
+            easing: 'easeInOutSine'
+          }, 0)
+          .add({
+            targets: '#beamParticle2',
+            cx: [270, 30],
+            duration: 2100,
+            easing: 'easeInOutSine'
+          }, 0);
+      }
+    }
+
+    function animateTransferProgress(percentVal, speedText, etaText) {
+      const progressBar = document.getElementById('uploadProgressBar');
+      const percentEl = document.getElementById('uploadPercent');
+      const speedEl = document.getElementById('transferSpeedText');
+      const etaEl = document.getElementById('transferEtaText');
+
+      if (progressBar) {
+        if (typeof anime !== 'undefined') {
+          anime({
+            targets: progressBar,
+            width: `${percentVal}%`,
+            duration: 160,
+            easing: 'linear'
+          });
+        } else {
+          progressBar.style.width = `${percentVal}%`;
+        }
+      }
+      if (percentEl) percentEl.innerText = `${percentVal}%`;
+      if (speedEl) speedEl.innerText = speedText || '--';
+      if (etaEl) etaEl.innerText = etaText || '--';
+    }
+
     // Tab Navigation
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('#tabBtnVault, #tabBtnNotifications, #tabBtnQuickdrop, #tabBtnHud').forEach(btn => {
         btn.className = 'ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.05]';
+        btn.setAttribute('aria-selected', 'false');
       });
 
       const activeClass = 'ios-btn px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 bg-white/[0.12] text-white shadow-sm border border-white/10';
 
+      let targetSection = null;
       if (tabId === 'vault') {
-        document.getElementById('tabSectionVault').classList.remove('hidden');
+        targetSection = document.getElementById('tabSectionVault');
         document.getElementById('tabBtnVault').className = activeClass;
+        document.getElementById('tabBtnVault').setAttribute('aria-selected', 'true');
       } else if (tabId === 'notifications') {
-        document.getElementById('tabSectionNotifications').classList.remove('hidden');
+        targetSection = document.getElementById('tabSectionNotifications');
         document.getElementById('tabBtnNotifications').className = activeClass;
+        document.getElementById('tabBtnNotifications').setAttribute('aria-selected', 'true');
       } else if (tabId === 'quickdrop') {
-        document.getElementById('tabSectionQuickdrop').classList.remove('hidden');
+        targetSection = document.getElementById('tabSectionQuickdrop');
         document.getElementById('tabBtnQuickdrop').className = activeClass;
+        document.getElementById('tabBtnQuickdrop').setAttribute('aria-selected', 'true');
         loadPendingDrops();
+        startBeamAnimation();
       } else if (tabId === 'hud') {
-        document.getElementById('tabSectionHud').classList.remove('hidden');
+        targetSection = document.getElementById('tabSectionHud');
         document.getElementById('tabBtnHud').className = activeClass;
+        document.getElementById('tabBtnHud').setAttribute('aria-selected', 'true');
+      }
+
+      if (targetSection) {
+        targetSection.classList.remove('hidden');
+        animateTabTransition(targetSection);
       }
       lucide.createIcons();
     }
@@ -1257,10 +1482,7 @@
         if (progressContainer) {
           progressContainer.classList.remove('hidden');
           document.getElementById('uploadFileName').innerText = data.filename || 'Transferring...';
-          document.getElementById('uploadProgressBar').style.width = `${data.percent || 0}%`;
-          document.getElementById('uploadPercent').innerText = `${data.percent || 0}%`;
-          document.getElementById('transferSpeedText').innerText = data.speed_human || '--';
-          document.getElementById('transferEtaText').innerText = `${data.eta_seconds || 0}s`;
+          animateTransferProgress(data.percent || 0, data.speed_human || '--', `${data.eta_seconds || 0}s`);
         }
       } else if (ev === 'TRANSFER_COMPLETED' || ev === 'FOLDER_TRANSFER_COMPLETED') {
         loadPendingDrops();
@@ -1615,10 +1837,7 @@
       currentActiveTransferId = 'tx_' + Math.random().toString(36).substring(2, 11);
       progressContainer.classList.remove('hidden');
       fileNameEl.innerText = file.name;
-      progressBar.style.width = '15%';
-      percentEl.innerText = '15%';
-      speedEl.innerText = 'Connecting...';
-      etaEl.innerText = '--';
+      animateTransferProgress(15, 'Connecting...', '--');
 
       const formData = new FormData();
       formData.append('file', file);
@@ -1636,10 +1855,7 @@
         if (res.ok) {
           const elapsed = Math.max(0.1, (Date.now() - startTime) / 1000);
           const speedVal = ((file.size / (1024 * 1024)) / elapsed).toFixed(1);
-          progressBar.style.width = '100%';
-          percentEl.innerText = '100%';
-          speedEl.innerText = `${speedVal} MB/s`;
-          etaEl.innerText = '0s';
+          animateTransferProgress(100, `${speedVal} MB/s`, '0s');
           showToast(`"${file.name}" transferred at ${speedVal} MB/s!`);
           setTimeout(() => {
             progressContainer.classList.add('hidden');
@@ -1878,7 +2094,10 @@
         const data = await res.json();
         document.getElementById('pinCode').innerText = data.pin;
         document.getElementById('qrContainer').innerHTML = data.qr_svg;
-        document.getElementById('serverAddress').innerText = `http://${data.host}:${data.port}`;
+        const srvAddr = `http://${data.host}:${data.port}`;
+        document.getElementById('serverAddress').innerText = srvAddr;
+        const beamHostEl = document.getElementById('beamHostIp');
+        if (beamHostEl) beamHostEl.innerText = `${data.host}:${data.port}`;
 
         if (data.apk_qr_svg) {
           document.getElementById('welcomeApkQrContainer').innerHTML = data.apk_qr_svg;
@@ -2111,7 +2330,7 @@
         const data = await res.json();
         const devices = data.devices || [];
 
-        document.getElementById('statDevices').innerText = devices.length;
+        animateCounter('statDevices', devices.length);
 
         let totalFiles = 0;
         let totalBytes = 0;
@@ -2120,8 +2339,13 @@
           totalBytes += (d.total_bytes || 0);
         });
 
-        document.getElementById('statFiles').innerText = totalFiles.toLocaleString();
+        animateCounter('statFiles', totalFiles);
         document.getElementById('statStorage').innerText = formatBytes(totalBytes);
+
+        if (devices.length > 0) {
+          const beamDev = document.getElementById('beamDeviceName');
+          if (beamDev) beamDev.innerText = devices[0].device_name || 'Mobile Client';
+        }
 
         const tbody = document.getElementById('devicesTableBody');
         if (devices.length === 0) {
@@ -2212,6 +2436,8 @@
       lucide.createIcons();
       refreshData();
       connectWebSocket();
+      startBeamAnimation();
+      animateTabTransition(document.getElementById('tabSectionVault'));
       setInterval(refreshData, 12000);
 
       // Keyboard Esc to close modals
