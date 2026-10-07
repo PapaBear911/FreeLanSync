@@ -9,6 +9,8 @@ photosync_config.json
 freelansync.db*
 freelansync_config.json
 server/static/*.exe
+releases/*.exe
+releases/*.apk
 
 # Node & Desktop App
 desktop-app/node_modules/
