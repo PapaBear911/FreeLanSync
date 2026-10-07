@@ -457,6 +457,42 @@ async def download_folder_zip(folder_name: str, device: dict = Depends(verify_au
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/v1/transfer/list")
+async def list_transfers():
+    """List all completed gigabit files and folders in the Transfers directory."""
+    transfers_dir = get_transfers_dir()
+    items = []
+    if transfers_dir.exists():
+        for p in transfers_dir.iterdir():
+            if p.name.startswith(".tmp_"):
+                continue
+            is_dir = p.is_dir()
+            try:
+                if is_dir:
+                    size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
+                else:
+                    size = p.stat().st_size
+                items.append({
+                    "name": p.name,
+                    "is_dir": is_dir,
+                    "size": size,
+                    "mtime": p.stat().st_mtime
+                })
+            except Exception:
+                pass
+    items.sort(key=lambda x: x["mtime"], reverse=True)
+    return {"transfers": items}
+
+@app.get("/api/v1/transfer/download-file/{file_name}")
+async def download_transfer_file(file_name: str):
+    """Download an individual file from the Transfers folder."""
+    import os
+    safe_name = os.path.basename(file_name)
+    p = get_transfers_dir() / safe_name
+    if not p.exists() or not p.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(p, filename=safe_name)
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     html_file = static_dir / "index.html"
