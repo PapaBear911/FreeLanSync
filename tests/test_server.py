@@ -3,6 +3,7 @@ import pytest
 import hashlib
 import tempfile
 import shutil
+import secrets
 from pathlib import Path
 from fastapi.testclient import TestClient
 
@@ -69,10 +70,12 @@ def test_pairing_flow():
     token = res_data["auth_token"]
 
     # 4. Verify auth token allows batch check
+    h1 = secrets.token_hex(32)
+    h2 = secrets.token_hex(32)
     batch_resp = client.post(
         "/api/v1/photos/check-batch",
         headers={"Authorization": f"Bearer {token}"},
-        json={"hashes": ["a" * 64, "b" * 64]}
+        json={"hashes": [h1, h2]}
     )
     assert batch_resp.status_code == 200
     batch_data = batch_resp.json()
@@ -82,15 +85,16 @@ def test_pairing_flow():
 def test_photo_upload_and_deduplication():
     # Setup paired device
     pin = pairing_manager.generate_pin()
+    dev_id = f"pixel-8-{secrets.token_hex(4)}"
     pair_resp = client.post("/api/v1/pairing/verify", json={
         "pin": pin,
         "device_name": "Pixel 8",
-        "device_id": "pixel-8-id"
+        "device_id": dev_id
     })
     token = pair_resp.json()["auth_token"]
 
-    # Create dummy photo bytes
-    photo_content = b"\xFF\xD8\xFF\xE0\x00\x10JFIF" + b"dummy_image_data_1234567890"
+    # Create unique dummy photo bytes
+    photo_content = b"\xFF\xD8\xFF\xE0\x00\x10JFIF" + secrets.token_bytes(64)
     photo_hash = hashlib.sha256(photo_content).hexdigest()
 
     # 1. Pre-flight check: hash should be missing
@@ -137,7 +141,7 @@ def test_tampered_hash_rejection():
     pair_resp = client.post("/api/v1/pairing/verify", json={
         "pin": pin,
         "device_name": "Galaxy S24",
-        "device_id": "galaxy-s24-id"
+        "device_id": f"galaxy-s24-{secrets.token_hex(4)}"
     })
     token = pair_resp.json()["auth_token"]
 

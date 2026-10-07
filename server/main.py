@@ -8,8 +8,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
 import json
+import os
 import sys
 import subprocess
+import datetime
 
 from .config import (
     SERVICE_NAME,
@@ -92,7 +94,7 @@ class BatchCheckResponse(BaseModel):
 class SpaceCheckRequest(BaseModel):
     required_bytes: int
 
-# Authentication dependency
+# Authentication dependencies
 async def verify_auth(authorization: Optional[str] = Header(None)) -> dict:
     if not authorization:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
@@ -104,6 +106,14 @@ async def verify_auth(authorization: Optional[str] = Header(None)) -> dict:
     if not device:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired device token")
     return device
+
+async def optional_verify_auth(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    if not authorization:
+        return None
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+    return get_device_by_token(parts[1])
 
 # --- Public Endpoints ---
 
@@ -349,9 +359,9 @@ async def device_bridge_ws(
                 except Exception as e:
                     print(f"Error handling device event: {e}")
         except WebSocketDisconnect:
-            ws_manager.disconnect_device(device_id, websocket)
+            await ws_manager.disconnect_device(device_id, websocket)
         except Exception:
-            ws_manager.disconnect_device(device_id, websocket)
+            await ws_manager.disconnect_device(device_id, websocket)
 
 # --- Quick-Drop (Bidirectional File Transfer) Endpoints ---
 
@@ -410,7 +420,6 @@ class ClipboardPayload(BaseModel):
 @app.post("/api/v1/clipboard")
 async def update_clipboard(payload: ClipboardPayload):
     """Update shared clipboard from PC or REST client."""
-    import datetime
     data = {
         "text": payload.text,
         "source": payload.source,
@@ -434,7 +443,7 @@ async def get_continuity_status():
 # --- LANSync Gigabit Transfer Endpoints ---
 
 @app.post("/api/v1/transfer/check-space")
-async def check_transfer_space(payload: SpaceCheckRequest, device: dict = Depends(verify_auth)):
+async def check_transfer_space(payload: SpaceCheckRequest, device: Optional[dict] = Depends(optional_verify_auth)):
     """Pre-flight check to verify target storage has sufficient capacity."""
     return transfer_manager.check_space(payload.required_bytes)
 
@@ -450,7 +459,7 @@ async def upload_chunked_transfer(
     filename: str = Form(...),
     total_size: int = Form(...),
     relative_path: Optional[str] = Form(None),
-    device: dict = Depends(verify_auth)
+    device: Optional[dict] = Depends(optional_verify_auth)
 ):
     """Gigabit streaming upload with atomic staging and rollback on cancellation."""
     async def on_progress(status_dict):
@@ -473,7 +482,7 @@ async def upload_chunked_transfer(
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/v1/transfer/cancel/{transfer_id}")
-async def cancel_transfer(transfer_id: str, device: dict = Depends(verify_auth)):
+async def cancel_transfer(transfer_id: str, device: Optional[dict] = Depends(optional_verify_auth)):
     """Cancel an ongoing transfer and immediately delete temporary partial data."""
     success = transfer_manager.cancel_transfer(transfer_id)
     await ws_manager.broadcast_to_ui("TRANSFER_CANCELLED", {"transfer_id": transfer_id})
@@ -484,7 +493,7 @@ async def cancel_transfer(transfer_id: str, device: dict = Depends(verify_auth))
     }
 
 @app.get("/api/v1/transfer/status/{transfer_id}")
-async def get_transfer_status(transfer_id: str, device: dict = Depends(verify_auth)):
+async def get_transfer_status(transfer_id: str, device: Optional[dict] = Depends(optional_verify_auth)):
     """Retrieve current transfer progress, throughput, and state."""
     status_dict = transfer_manager.get_status(transfer_id)
     if not status_dict:
@@ -496,7 +505,7 @@ async def upload_folder_transfer(
     files: List[UploadFile] = File(...),
     folder_name: str = Form(...),
     relative_paths: List[str] = Form(...),
-    device: dict = Depends(verify_auth)
+    device: Optional[dict] = Depends(optional_verify_auth)
 ):
     """Recursive folder upload with directory hierarchy preservation."""
     cleaned_rel_paths = []
@@ -521,7 +530,7 @@ async def upload_folder_transfer(
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/v1/transfer/download-folder/{folder_name}")
-async def download_folder_zip(folder_name: str, device: dict = Depends(verify_auth)):
+async def download_folder_zip(folder_name: str, device: Optional[dict] = Depends(optional_verify_auth)):
     """Package and stream an entire directory tree as a zip archive."""
     try:
         buf = transfer_manager.create_folder_zip(folder_name)
@@ -564,7 +573,6 @@ async def list_transfers():
 @app.get("/api/v1/transfer/download-file/{file_name}")
 async def download_transfer_file(file_name: str):
     """Download an individual file from the Transfers folder."""
-    import os
     safe_name = os.path.basename(file_name)
     p = get_transfers_dir() / safe_name
     if not p.exists() or not p.is_file():

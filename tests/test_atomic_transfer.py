@@ -54,3 +54,29 @@ def test_atomic_upload_and_cancellation():
     stat2 = client.get(f"/api/v1/transfer/status/{tid2}", headers=headers)
     assert stat2.status_code == 200
     assert stat2.json()["status"] == "CANCELLED"
+
+def test_web_client_unauthenticated_transfer():
+    """Verify that local web dashboard clients can perform transfers without device bearer tokens."""
+    init_db()
+    client = TestClient(app)
+    
+    # Pre-flight space check without Authorization header
+    space_res = client.post("/api/v1/transfer/check-space", json={"required_bytes": 1024 * 1024})
+    assert space_res.status_code == 200
+    assert space_res.json()["allowed"] is True
+
+    # Web client direct file upload
+    tid = str(uuid.uuid4())
+    content = b"WEB_DASHBOARD_DRAG_AND_DROP_PAYLOAD"
+    upload_res = client.post(
+        "/api/v1/transfer/upload-chunked",
+        data={"transfer_id": tid, "filename": "web_upload.txt", "total_size": len(content)},
+        files={"file": ("web_upload.txt", io.BytesIO(content), "text/plain")}
+    )
+    assert upload_res.status_code == 200
+    assert upload_res.json()["success"] is True
+
+    # Check status without auth header
+    status_res = client.get(f"/api/v1/transfer/status/{tid}")
+    assert status_res.status_code == 200
+    assert status_res.json()["status"] == "COMPLETED"

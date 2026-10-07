@@ -10,21 +10,9 @@ import uuid
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Callable
-from .config import get_storage_dir, get_transfers_dir
+from .config import get_storage_dir, get_transfers_dir, format_bytes
 
 logger = logging.getLogger("freelansync.transfer")
-
-def format_bytes(size: int) -> str:
-    """Format bytes into human-readable string."""
-    if size < 0:
-        return "0 B"
-    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-    unit_idx = 0
-    val = float(size)
-    while val >= 1024.0 and unit_idx < len(units) - 1:
-        val /= 1024.0
-        unit_idx += 1
-    return f"{val:.1f} {units[unit_idx]}" if unit_idx > 0 else f"{int(val)} B"
 
 class TransferManager:
     # 250 MB safety margin buffer for disk space

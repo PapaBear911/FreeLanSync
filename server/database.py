@@ -47,8 +47,7 @@ def init_db(db_path: Path = DATABASE_PATH):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_media_device ON media_files(device_id);")
 
 def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
-    from . import config
-    target_path = db_path if db_path is not None else config.DATABASE_PATH
+    target_path = db_path if db_path is not None else DATABASE_PATH
     init_db(target_path)
     conn = sqlite3.connect(target_path)
     conn.row_factory = sqlite3.Row
@@ -114,12 +113,12 @@ def get_all_devices(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
         """)
         return [dict(r) for r in cur.fetchall()]
 
-def get_recent_media(limit: int = 50, db_path: Path = DATABASE_PATH) -> List[Dict[str, Any]]:
+def get_recent_media(limit: int = 50, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     with get_connection(db_path) as conn:
         cur = conn.execute("""
-            SELECT m.*, d.device_name 
+            SELECT m.*, COALESCE(d.device_name, 'Unknown Device') as device_name 
             FROM media_files m
-            JOIN devices d ON m.device_id = d.device_id
+            LEFT JOIN devices d ON m.device_id = d.device_id
             ORDER BY m.backed_up_at DESC
             LIMIT ?;
         """, (limit,))

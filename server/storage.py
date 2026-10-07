@@ -2,6 +2,7 @@
 import os
 import hashlib
 import datetime
+import uuid
 from pathlib import Path
 from typing import Tuple, Optional
 from .config import get_backup_dir, get_quickdrop_dir
@@ -128,7 +129,6 @@ class StorageManager:
         file_bytes: bytes,
         mime_type: Optional[str] = None
     ) -> dict:
-        import uuid
         drop_dir = get_quickdrop_dir()
         file_id = uuid.uuid4().hex[:12]
         clean_file = sanitize_filename(original_filename)

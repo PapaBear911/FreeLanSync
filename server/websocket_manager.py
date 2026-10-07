@@ -59,7 +59,7 @@ class ConnectionManager:
             "device_name": device_name
         })
 
-    def disconnect_device(self, device_id: str, websocket: WebSocket):
+    async def disconnect_device(self, device_id: str, websocket: WebSocket):
         if device_id in self.device_connections:
             self.device_connections[device_id].discard(websocket)
             if not self.device_connections[device_id]:
@@ -69,9 +69,7 @@ class ConnectionManager:
                     if d.get("device_id") == device_id:
                         d["online"] = False
                 logger.info(f"Device {device_id} completely disconnected.")
-        
-        # Broadcast offline status
-        # Note: can schedule broadcast if needed
+                await self.broadcast_to_ui("DEVICE_DISCONNECTED", {"device_id": device_id})
 
     async def broadcast_to_ui(self, event_type: str, data: Any):
         """Send event payload to all connected UI dashboards / Electron shells."""

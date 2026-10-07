@@ -1896,17 +1896,11 @@
       } catch (e) {}
 
       const progressContainer = document.getElementById('uploadProgressContainer');
-      const progressBar = document.getElementById('uploadProgressBar');
       const fileNameEl = document.getElementById('uploadFileName');
-      const percentEl = document.getElementById('uploadPercent');
-      const speedEl = document.getElementById('transferSpeedText');
-      const etaEl = document.getElementById('transferEtaText');
 
       progressContainer.classList.remove('hidden');
       fileNameEl.innerText = `Folder: ${rootFolder} (${files.length} items)`;
-      progressBar.style.width = '20%';
-      percentEl.innerText = '20%';
-      speedEl.innerText = 'Streaming tree...';
+      animateTransferProgress(20, 'Streaming tree...', '--');
 
       const formData = new FormData();
       formData.append('folder_name', rootFolder);
@@ -1924,10 +1918,7 @@
         if (res.ok) {
           const elapsed = Math.max(0.1, (Date.now() - startTime) / 1000);
           const speedVal = ((totalBytes / (1024 * 1024)) / elapsed).toFixed(1);
-          progressBar.style.width = '100%';
-          percentEl.innerText = '100%';
-          speedEl.innerText = `${speedVal} MB/s`;
-          etaEl.innerText = '0s';
+          animateTransferProgress(100, `${speedVal} MB/s`, '0s');
           showToast(`Folder "${rootFolder}" (${formatBytes(totalBytes)}) transferred at ${speedVal} MB/s!`);
           setTimeout(() => {
             progressContainer.classList.add('hidden');

@@ -112,3 +112,21 @@ def test_websocket_device_authentication():
     assert data["battery"]["is_charging"] is True
     assert len(data["notifications"]) >= 1
     assert data["notifications"][0]["title"] == "Alice"
+
+def test_websocket_device_disconnect_broadcast():
+    token = "mock_token_disc"
+    register_device(device_name="Galaxy S24", device_id="test_phone_disc", auth_token=token)
+    
+    with client.websocket_connect("/api/v1/ws/device-bridge?client_type=ui") as ui_ws:
+        initial = ui_ws.receive_json()
+        assert initial["event"] == "STATE_SNAPSHOT"
+
+        with client.websocket_connect(f"/api/v1/ws/device-bridge?client_type=device&token={token}") as dev_ws:
+            connect_msg = ui_ws.receive_json()
+            assert connect_msg["event"] == "DEVICE_CONNECTED"
+            assert connect_msg["data"]["device_id"] == "test_phone_disc"
+
+        # After device socket closes, UI receives DEVICE_DISCONNECTED
+        disconnect_msg = ui_ws.receive_json()
+        assert disconnect_msg["event"] == "DEVICE_DISCONNECTED"
+        assert disconnect_msg["data"]["device_id"] == "test_phone_disc"

@@ -1,10 +1,15 @@
-"""End-to-End Simulation of PhotoSync Local Wi-Fi Backup Flow."""
 import time
 import hashlib
 import json
 import socket
 import tempfile
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import httpx
 
 from server.config import SERVER_PORT, BACKUP_DIR, get_local_ip

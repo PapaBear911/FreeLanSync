@@ -51,3 +51,26 @@ def test_recursive_folder_upload_and_download():
     namelist = zf.namelist()
     assert any("Docs/readme.txt" in name.replace("\\", "/") for name in namelist)
     assert any("Docs/src/main.py" in name.replace("\\", "/") for name in namelist)
+
+def test_web_client_unauthenticated_folder_transfer():
+    """Verify web client folder upload and zip download without authorization header."""
+    init_db()
+    client = TestClient(app)
+    
+    files = [
+        ("files", ("notes.txt", io.BytesIO(b"Web folder upload test"), "text/plain"))
+    ]
+    data = {
+        "folder_name": "WebFolder",
+        "relative_paths": ["notes.txt"]
+    }
+    upload_res = client.post("/api/v1/transfer/folder", files=files, data=data)
+    assert upload_res.status_code == 200
+    assert upload_res.json()["success"] is True
+
+    # Download zip archive without auth
+    dl_res = client.get("/api/v1/transfer/download-folder/WebFolder")
+    assert dl_res.status_code == 200
+    assert dl_res.headers["content-type"] == "application/zip"
+    zf = zipfile.ZipFile(io.BytesIO(dl_res.content))
+    assert "notes.txt" in zf.namelist()
