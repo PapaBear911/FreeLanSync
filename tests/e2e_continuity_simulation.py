@@ -188,7 +188,8 @@ def run_simulation():
 
     # 11. Verify Camera Roll Archival & Deduplication remains intact
     print("\n[11] Verifying Core Camera Roll Backup & Deduplication...")
-    mock_img_bytes = b"JPEG_DATA_SIMULATION_IMAGE_1234567890"
+    import secrets
+    mock_img_bytes = f"JPEG_DATA_SIMULATION_IMAGE_{time.time()}_{secrets.token_hex(4)}".encode()
     img_hash = hashlib.sha256(mock_img_bytes).hexdigest().lower()
 
     # Preflight batch check
