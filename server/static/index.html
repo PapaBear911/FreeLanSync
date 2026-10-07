@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PhotoSync Desktop Server</title>
+  <title>PhotoSync & Synco Device Continuity Hub</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons CDN -->
@@ -13,190 +13,470 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
     }
+    @keyframes ring-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); transform: scale(1); }
+      50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); transform: scale(1.02); }
+    }
     .status-pulse { animation: pulse-subtle 2s infinite ease-in-out; }
+    .call-ringing { animation: ring-glow 1.5s infinite ease-in-out; }
+    .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
 
-  <!-- Navigation Bar -->
-  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <!-- Call Incoming Floating Banner Modal -->
+  <div id="incomingCallBanner" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-md w-full px-4 transition-all duration-300">
+    <div class="call-ringing bg-rose-950/95 border border-rose-500/60 rounded-2xl p-4 shadow-2xl flex items-center justify-between text-white backdrop-blur-xl">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-          <i data-lucide="camera" class="w-5 h-5 text-white"></i>
+        <div class="w-12 h-12 rounded-xl bg-rose-600/30 border border-rose-500/50 flex items-center justify-center text-rose-400">
+          <i data-lucide="phone-call" class="w-6 h-6 animate-bounce"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            PhotoSync Server
+          <span class="text-[10px] uppercase font-bold tracking-wider text-rose-400">Incoming Phone Call</span>
+          <h4 class="text-base font-bold truncate max-w-[200px]" id="callCallerName">Unknown Caller</h4>
+          <p class="text-xs text-rose-200/80 font-mono" id="callCallerNumber">+1 (555) 000-0000</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="dismissCallAlert()" class="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-xs font-semibold transition-all">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Status -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <i data-lucide="cpu" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold text-white tracking-tight">PhotoSync & Synco</h1>
             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 status-pulse"></span>
-              Online
+              Bridge Active
             </span>
-          </h1>
+          </div>
           <p class="text-xs text-slate-400" id="serverAddress">Detecting local network...</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-3">
-        <button onclick="openWelcomeModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all">
+      <!-- Live Telemetry Pill & Actions -->
+      <div class="flex items-center gap-3">
+        
+        <!-- Live Battery Pill -->
+        <div id="topBatteryPill" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-medium text-slate-300">
+          <i data-lucide="battery" id="topBatteryIcon" class="w-4 h-4 text-emerald-400"></i>
+          <span id="topBatteryText">Phone: --%</span>
+        </div>
+
+        <button onclick="openWelcomeModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all">
           <i data-lucide="smartphone" class="w-4 h-4"></i>
-          <span>Get Android App</span>
+          <span class="hidden md:inline">Get Android App</span>
         </button>
-        <button onclick="openSettingsModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors">
+
+        <button onclick="openSettingsModal()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors" title="Settings">
           <i data-lucide="settings" class="w-4 h-4 text-indigo-400"></i>
-          <span>Storage Settings</span>
         </button>
+
         <button onclick="refreshData()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors" title="Refresh">
           <i data-lucide="refresh-cw" class="w-4 h-4"></i>
         </button>
       </div>
     </div>
+
+    <!-- Navigation Tab Bar -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-800/60 flex items-center space-x-1 sm:space-x-4 overflow-x-auto py-2">
+      <button onclick="switchTab('vault')" id="tabBtnVault" class="tab-btn active px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all">
+        <i data-lucide="camera" class="w-4 h-4"></i>
+        <span>Photo Vault</span>
+      </button>
+
+      <button onclick="switchTab('notifications')" id="tabBtnNotifications" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+        <i data-lucide="bell" class="w-4 h-4"></i>
+        <span>Notification Mirror</span>
+        <span id="notifBadge" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-600 text-white">0</span>
+      </button>
+
+      <button onclick="switchTab('quickdrop')" id="tabBtnQuickdrop" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+        <i data-lucide="send" class="w-4 h-4"></i>
+        <span>Quick-Drop & Clipboard</span>
+      </button>
+
+      <button onclick="switchTab('hud')" id="tabBtnHud" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+        <i data-lucide="sliders" class="w-4 h-4"></i>
+        <span>Device HUD & Media</span>
+      </button>
+    </div>
   </header>
 
-  <!-- Main Content Layout -->
-  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+  <!-- Main Content Body -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full space-y-6">
 
-    <!-- Top Grid: Quick Stats & Pairing -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- ========================================== -->
+    <!-- TAB 1: PHOTO VAULT & ARCHIVE               -->
+    <!-- ========================================== -->
+    <section id="tabSectionVault" class="tab-content space-y-6">
+      
+      <!-- Top Grid: Quick Stats & Pairing -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <!-- Pairing Card -->
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">Device Pairing</span>
-            <span class="text-xs text-slate-400" id="pinTimer">Expires in --</span>
-          </div>
+        <!-- Pairing Card -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">Device Pairing</span>
+              <span class="text-xs text-slate-400" id="pinTimer">Expires in --</span>
+            </div>
 
-          <h2 class="text-xl font-bold text-white">Pair Your Android Phone</h2>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Scan the QR code with the PhotoSync Android app or enter the 6-digit PIN to establish an authorized local link.
-          </p>
+            <h2 class="text-xl font-bold text-white">Pair Your Android Phone</h2>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Scan the QR code with the PhotoSync app or enter the 6-digit PIN to establish an authorized local link.
+            </p>
 
-          <!-- QR Code Container -->
-          <div class="flex justify-center py-2" id="qrContainer">
-            <div class="w-48 h-48 bg-slate-800 animate-pulse rounded-xl flex items-center justify-center">
-              <span class="text-xs text-slate-500">Generating QR...</span>
+            <!-- QR Code Container -->
+            <div class="flex justify-center py-2" id="qrContainer">
+              <div class="w-44 h-44 bg-slate-800 animate-pulse rounded-xl flex items-center justify-center">
+                <span class="text-xs text-slate-500">Generating QR...</span>
+              </div>
+            </div>
+
+            <!-- PIN Display -->
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
+              <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">6-Digit PIN:</span>
+              <span class="text-2xl font-mono font-black text-indigo-400 tracking-widest" id="pinCode">------</span>
             </div>
           </div>
 
-          <!-- PIN Display -->
-          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
-            <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">6-Digit PIN:</span>
-            <span class="text-2xl font-mono font-black text-indigo-400 tracking-widest" id="pinCode">------</span>
+          <div class="mt-4 pt-4 border-t border-slate-800 flex items-center gap-2 text-xs text-slate-400">
+            <i data-lucide="wifi" class="w-4 h-4 text-emerald-400"></i>
+            <span>mDNS broadcast: <code class="text-slate-300">_photosync._tcp</code></span>
           </div>
         </div>
 
-        <div class="mt-4 pt-4 border-t border-slate-800 flex items-center gap-2 text-xs text-slate-400">
-          <i data-lucide="wifi" class="w-4 h-4 text-emerald-400"></i>
-          <span>Auto-discovered via mDNS (<code class="text-slate-300">_photosync._tcp</code>)</span>
+        <!-- Metrics & Paired Devices -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="glass-panel border border-slate-800 rounded-2xl p-5 shadow-lg">
+              <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+                <span>Paired Devices</span>
+                <i data-lucide="smartphone" class="w-4 h-4 text-indigo-400"></i>
+              </div>
+              <p class="text-2xl font-black text-white mt-2" id="statDevices">0</p>
+              <span class="text-[11px] text-slate-500">Active local clients</span>
+            </div>
+
+            <div class="glass-panel border border-slate-800 rounded-2xl p-5 shadow-lg">
+              <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+                <span>Backed Up Items</span>
+                <i data-lucide="image" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <p class="text-2xl font-black text-white mt-2" id="statFiles">0</p>
+              <span class="text-[11px] text-slate-500">SHA-256 deduplicated</span>
+            </div>
+
+            <div class="glass-panel border border-slate-800 rounded-2xl p-5 shadow-lg">
+              <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+                <span>Storage Vault</span>
+                <i data-lucide="hard-drive" class="w-4 h-4 text-violet-400"></i>
+              </div>
+              <p class="text-2xl font-black text-white mt-2" id="statStorage">0 B</p>
+              <span class="text-[11px] text-slate-500" id="currentStorageDisplay">Local PC storage</span>
+            </div>
+          </div>
+
+          <!-- Paired Devices Table -->
+          <div class="glass-panel border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+            <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="radio" class="w-4 h-4 text-indigo-400"></i>
+                Connected Devices
+              </h3>
+              <span class="text-xs text-slate-400">Auto-synced over local Wi-Fi</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/60 text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th class="px-4 py-3 font-semibold">Device</th>
+                    <th class="px-4 py-3 font-semibold">Device ID</th>
+                    <th class="px-4 py-3 font-semibold">Files</th>
+                    <th class="px-4 py-3 font-semibold">Storage</th>
+                    <th class="px-4 py-3 font-semibold">Last Active</th>
+                  </tr>
+                </thead>
+                <tbody id="devicesTableBody" class="divide-y divide-slate-800/60">
+                  <tr>
+                    <td colspan="5" class="px-4 py-6 text-center text-slate-500">
+                      No devices paired yet. Scan the QR code to pair!
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Recent Media Gallery Preview -->
+      <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="gallery-thumbnails" class="w-5 h-5 text-indigo-400"></i>
+              Recent Backed Up Media
+            </h3>
+            <p class="text-xs text-slate-400">Stored in date-organized folders on your PC</p>
+          </div>
+          <span class="text-xs font-semibold text-slate-400" id="galleryCount">0 items</span>
+        </div>
+
+        <div id="mediaGallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
+          <div class="col-span-full py-12 text-center text-slate-500">
+            <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 text-slate-600"></i>
+            <p>No photos or videos backed up yet.</p>
+          </div>
         </div>
       </div>
 
-      <!-- Stats and Connected Devices -->
-      <div class="lg:col-span-2 space-y-6">
+    </section>
 
-        <!-- Top Metrics Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs uppercase font-semibold">Paired Devices</span>
-              <i data-lucide="smartphone" class="w-4 h-4 text-indigo-400"></i>
-            </div>
-            <div class="text-3xl font-extrabold text-white" id="statDevices">0</div>
-          </div>
-
-          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs uppercase font-semibold">Total Backed Up</span>
-              <i data-lucide="image" class="w-4 h-4 text-emerald-400"></i>
-            </div>
-            <div class="text-3xl font-extrabold text-white" id="statFiles">0</div>
-          </div>
-
-          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs uppercase font-semibold">Storage Used</span>
-              <i data-lucide="hard-drive" class="w-4 h-4 text-violet-400"></i>
-            </div>
-            <div class="text-3xl font-extrabold text-white" id="statStorage">0 B</div>
-          </div>
+    <!-- ========================================== -->
+    <!-- TAB 2: NOTIFICATION MIRRORING & CALLS       -->
+    <!-- ========================================== -->
+    <section id="tabSectionNotifications" class="tab-content hidden space-y-6">
+      
+      <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="bell" class="w-5 h-5 text-indigo-400"></i>
+            Real-Time Notification Mirroring (Synco Protocol)
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">
+            Incoming notifications from WhatsApp, Slack, SMS, and apps are mirrored here instantaneously over the local WebSocket bridge.
+          </p>
         </div>
 
-        <!-- Current Storage Location Banner -->
-        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
-          <div class="flex items-center gap-3">
-            <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
-              <i data-lucide="folder" class="w-5 h-5"></i>
-            </div>
-            <div>
-              <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Save Destination</div>
-              <div class="text-sm font-mono text-slate-200 truncate max-w-md" id="currentStorageDisplay">Loading...</div>
-            </div>
-          </div>
-          <button onclick="openSettingsModal()" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline">
-            Change Folder
+        <div class="flex items-center gap-3">
+          <button onclick="requestDesktopNotifications()" id="desktopNotifBtn" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-indigo-300 border border-slate-700 flex items-center gap-2 transition-all">
+            <i data-lucide="volume-2" class="w-4 h-4"></i>
+            <span>Enable Desktop Banners</span>
+          </button>
+          <button onclick="clearNotifications()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-400 text-xs font-semibold text-slate-400 border border-slate-700 transition-all">
+            Clear Feed
           </button>
         </div>
+      </div>
 
-        <!-- Paired Devices Table -->
-        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
-            <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
-            Active & Paired Devices
-          </h3>
+      <!-- Notifications Feed Container -->
+      <div class="grid grid-cols-1 gap-3" id="notificationsFeed">
+        <div class="glass-panel border border-slate-800/80 rounded-2xl p-12 text-center text-slate-500" id="notifEmptyState">
+          <i data-lucide="bell-off" class="w-12 h-12 mx-auto mb-3 text-slate-700"></i>
+          <h4 class="text-sm font-semibold text-slate-400">No Notifications Mirroring Right Now</h4>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+            Make sure Notification Access is granted in the Android app. Incoming alerts will appear here in real time.
+          </p>
+        </div>
+      </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-300">
-              <thead class="text-xs uppercase bg-slate-950/60 text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th class="px-4 py-3 rounded-l-lg">Device Name</th>
-                  <th class="px-4 py-3">Device ID</th>
-                  <th class="px-4 py-3">Synced Files</th>
-                  <th class="px-4 py-3">Storage Size</th>
-                  <th class="px-4 py-3 rounded-r-lg">Last Active</th>
-                </tr>
-              </thead>
-              <tbody id="devicesTableBody" class="divide-y divide-slate-800/60">
-                <tr>
-                  <td colspan="5" class="px-4 py-6 text-center text-slate-500">
-                    No devices paired yet. Scan the QR code to pair!
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: QUICK-DROP & SHARED CLIPBOARD        -->
+    <!-- ========================================== -->
+    <section id="tabSectionQuickdrop" class="tab-content hidden space-y-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Universal Quick-Drop (PC -> Phone) -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="send" class="w-5 h-5 text-indigo-400"></i>
+                Universal Quick-Drop (PC ➔ Phone)
+              </h3>
+              <span class="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                Direct LAN Stream
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">
+              Drag and drop any file (APK, PDF, image, document, archive) below to send it directly to your connected Android phone without cloud intermediaries.
+            </p>
+          </div>
+
+          <!-- Drop Area -->
+          <div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)" onclick="document.getElementById('quickDropFileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-8 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-900/60 transition-all group">
+            <input type="file" id="quickDropFileInput" class="hidden" onchange="handleFileSelect(event)">
+            <div class="w-12 h-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+              <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+            </div>
+            <p class="text-sm font-semibold text-white">Click or Drag & Drop File Here</p>
+            <p class="text-xs text-slate-500 mt-1">Any size • SHA-256 verified</p>
+          </div>
+
+          <!-- Upload Progress -->
+          <div id="uploadProgressContainer" class="hidden space-y-1">
+            <div class="flex items-center justify-between text-xs text-slate-300">
+              <span id="uploadFileName">Sending file...</span>
+              <span id="uploadPercent">0%</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+              <div id="uploadProgressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-200" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Pending Drops List -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Available Drops on Server</h4>
+            <div id="pendingDropsList" class="space-y-2 text-xs">
+              <div class="text-slate-500 py-2">No files currently in drop queue.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shared Encrypted Clipboard (Bidirectional) -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="clipboard" class="w-5 h-5 text-violet-400"></i>
+                Shared Real-Time Clipboard
+              </h3>
+              <span class="text-xs font-medium text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                Bidirectional
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">
+              Text copied on your phone will stream here automatically. Type or paste text below to immediately send it to your phone clipboard.
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            <textarea id="clipboardTextArea" rows="6" placeholder="Type or paste text to share with Android phone..." class="w-full bg-slate-950/80 border border-slate-700 rounded-xl p-3 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"></textarea>
+            
+            <div class="flex items-center justify-between text-xs text-slate-500">
+              <span id="clipboardSourceText">Source: --</span>
+              <span id="clipboardTimeText">Updated: --</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 pt-2">
+            <button onclick="sendClipboardToPhone()" class="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 transition-all">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              <span>Send to Phone Clipboard</span>
+            </button>
+            <button onclick="copyToPcClipboard()" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-2 transition-all">
+              <i data-lucide="copy" class="w-4 h-4 text-indigo-400"></i>
+              <span>Copy</span>
+            </button>
           </div>
         </div>
 
       </div>
 
-    </div>
+    </section>
 
-    <!-- Recent Media Gallery Preview -->
-    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            <i data-lucide="images" class="w-5 h-5 text-violet-400"></i>
-            Recent Backup Stream
-          </h3>
-          <p class="text-xs text-slate-400">Photos and videos archived directly to your PC file system</p>
+    <!-- ========================================== -->
+    <!-- TAB 4: DEVICE HUD & REMOTE MEDIA           -->
+    <!-- ========================================== -->
+    <section id="tabSectionHud" class="tab-content hidden space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Phone Battery & Hardware Telemetry -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="battery-charging" class="w-5 h-5 text-emerald-400"></i>
+              Phone Power & Telemetry HUD
+            </h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700" id="hudDeviceName">Android Device</span>
+          </div>
+
+          <div class="p-6 bg-slate-950/80 rounded-2xl border border-slate-800 flex items-center gap-6">
+            <div class="relative w-24 h-24 flex items-center justify-center">
+              <svg class="w-24 h-24 transform -rotate-90">
+                <circle cx="48" cy="48" r="38" stroke="currentColor" stroke-width="8" class="text-slate-800" fill="transparent" />
+                <circle id="batterySvgCircle" cx="48" cy="48" r="38" stroke="currentColor" stroke-width="8" class="text-emerald-400 transition-all duration-500" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="60" />
+              </svg>
+              <div class="absolute flex flex-col items-center">
+                <span class="text-xl font-black text-white" id="hudBatteryPercent">--%</span>
+                <i data-lucide="zap" id="hudChargingZap" class="w-3.5 h-3.5 text-amber-400 hidden"></i>
+              </div>
+            </div>
+
+            <div class="space-y-1.5 text-xs text-slate-300">
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500">Charging Status:</span>
+                <span class="font-semibold text-white" id="hudChargingStatus">Disconnected</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500">Battery Health:</span>
+                <span class="font-semibold text-emerald-400" id="hudBatteryHealth">Good</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500">Link Protocol:</span>
+                <span class="font-mono text-indigo-400">WebSocket E2EE</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <span class="text-xs text-slate-500" id="galleryCount">0 items</span>
+
+        <!-- Remote "Now Playing" Media Controller -->
+        <div class="glass-panel border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="music" class="w-5 h-5 text-indigo-400"></i>
+              Now Playing Media Controller
+            </h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Remote Playback</span>
+          </div>
+
+          <div class="p-6 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-4">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 rounded-xl bg-slate-800 flex items-center justify-center text-slate-600 shadow-md">
+                <i data-lucide="disc" class="w-8 h-8 text-indigo-400 animate-spin" style="animation-duration: 6s;"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <h4 class="text-base font-bold text-white truncate" id="mediaTrackTitle">No Active Media</h4>
+                <p class="text-xs text-slate-400 truncate mt-0.5" id="mediaArtist">Open Spotify or YouTube Music on phone</p>
+                <p class="text-[10px] text-slate-500 truncate" id="mediaAlbum">--</p>
+              </div>
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="flex items-center justify-center gap-6 pt-2">
+              <button onclick="sendMediaCommand('PREV')" class="p-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all">
+                <i data-lucide="skip-back" class="w-5 h-5"></i>
+              </button>
+              <button onclick="toggleMediaPlayPause()" id="mediaPlayPauseBtn" class="p-4 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-105">
+                <i data-lucide="play" id="mediaPlayPauseIcon" class="w-6 h-6"></i>
+              </button>
+              <button onclick="sendMediaCommand('NEXT')" class="p-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all">
+                <i data-lucide="skip-forward" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      <div id="mediaGallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <div class="col-span-full py-12 text-center text-slate-500">
-          <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 text-slate-600"></i>
-          <p>No photos or videos backed up yet.</p>
-        </div>
-      </div>
     </section>
 
   </main>
 
-  <!-- Settings Modal -->
-  <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+  <!-- Modals -->
+
+  <!-- Storage Settings Modal -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i data-lucide="settings" class="w-5 h-5 text-indigo-400"></i>
@@ -218,27 +498,35 @@
 
       <div id="settingsFeedback" class="text-xs hidden p-2 rounded-lg"></div>
 
-  <!-- Welcome Popup Modal (Direct APK Download via QR) -->
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors">
+          Cancel
+        </button>
+        <button id="saveSettingsBtn" onclick="saveStorageSettings()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Welcome / Direct APK Modal -->
   <div id="welcomeModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative space-y-6">
       
-      <!-- Close button -->
       <button onclick="closeWelcomeModal()" class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
         <i data-lucide="x" class="w-5 h-5"></i>
       </button>
 
-      <!-- Welcome Header -->
       <div class="text-center space-y-2">
         <div class="inline-flex p-3 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner">
           <i data-lucide="smartphone" class="w-8 h-8"></i>
         </div>
-        <h3 class="text-2xl font-black text-white tracking-tight">Welcome to PhotoSync!</h3>
+        <h3 class="text-2xl font-black text-white tracking-tight">Download PhotoSync Android App</h3>
         <p class="text-sm text-slate-400 max-w-sm mx-auto">
-          Scan the QR code below with your Android camera or phone browser to directly download and install the app.
+          Scan the QR code below with your phone camera or browser to download the standalone APK directly over local Wi-Fi.
         </p>
       </div>
 
-      <!-- QR Code Container -->
       <div class="flex flex-col items-center justify-center p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-3">
         <div id="welcomeApkQrContainer" class="flex justify-center p-2 bg-white rounded-xl shadow-lg">
           <div class="w-44 h-44 bg-slate-200 animate-pulse rounded-lg flex items-center justify-center text-xs text-slate-500">
@@ -256,19 +544,18 @@
         </div>
       </div>
 
-      <!-- Action Buttons -->
       <div class="flex flex-col sm:flex-row items-center gap-3">
         <a id="directDownloadApkBtn" href="/static/PhotoSync.apk" download="PhotoSync-v1.0.0.apk" class="w-full sm:flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm text-center flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all">
           <i data-lucide="download" class="w-4 h-4"></i>
           <span>Direct Download APK</span>
         </a>
         <button onclick="closeWelcomeModal()" class="w-full sm:w-auto py-3 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-colors">
-          Got it, Proceed
+          Proceed to Dashboard
         </button>
       </div>
 
       <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs text-slate-500">
-        <span>Version 1.0.0 Standalone APK</span>
+        <span>PhotoSync Continuity Suite v1.1.0</span>
         <label class="flex items-center gap-2 cursor-pointer hover:text-slate-400">
           <input type="checkbox" id="dontShowWelcomeAgain" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
           <span>Don't show on launch</span>
@@ -280,10 +567,15 @@
 
   <!-- Footer -->
   <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
-    <p>PhotoSync Local Desktop Server • Private & Local Wi-Fi Backup</p>
+    <p>PhotoSync & Synco Local Device Continuity Suite • Zero Cloud • Local Wi-Fi & Hotspot E2EE</p>
   </footer>
 
+  <!-- Application Logic & WebSocket Script -->
   <script>
+    let ws = null;
+    let isPlaying = false;
+    let notificationsList = [];
+
     function formatBytes(bytes) {
       if (!bytes || bytes === 0) return '0 B';
       const k = 1024;
@@ -293,19 +585,407 @@
       return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     }
 
-    let apkDownloadUrl = '';
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600/20', 'text-indigo-300', 'border', 'border-indigo-500/30');
+        btn.classList.add('text-slate-400');
+      });
 
+      if (tabId === 'vault') {
+        document.getElementById('tabSectionVault').classList.remove('hidden');
+        document.getElementById('tabBtnVault').classList.add('bg-indigo-600/20', 'text-indigo-300', 'border', 'border-indigo-500/30');
+        document.getElementById('tabBtnVault').classList.remove('text-slate-400');
+      } else if (tabId === 'notifications') {
+        document.getElementById('tabSectionNotifications').classList.remove('hidden');
+        document.getElementById('tabBtnNotifications').classList.add('bg-indigo-600/20', 'text-indigo-300', 'border', 'border-indigo-500/30');
+        document.getElementById('tabBtnNotifications').classList.remove('text-slate-400');
+      } else if (tabId === 'quickdrop') {
+        document.getElementById('tabSectionQuickdrop').classList.remove('hidden');
+        document.getElementById('tabBtnQuickdrop').classList.add('bg-indigo-600/20', 'text-indigo-300', 'border', 'border-indigo-500/30');
+        document.getElementById('tabBtnQuickdrop').classList.remove('text-slate-400');
+        loadPendingDrops();
+      } else if (tabId === 'hud') {
+        document.getElementById('tabSectionHud').classList.remove('hidden');
+        document.getElementById('tabBtnHud').classList.add('bg-indigo-600/20', 'text-indigo-300', 'border', 'border-indigo-500/30');
+        document.getElementById('tabBtnHud').classList.remove('text-slate-400');
+      }
+      lucide.createIcons();
+    }
+
+    // WebSocket Device Bridge Connection
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/api/v1/ws/device-bridge?client_type=ui`;
+      
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('[WebSocket] Connected to Device Continuity Bridge');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          handleWebSocketMessage(payload);
+        } catch (e) {
+          console.error('[WebSocket] JSON parse error', e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.warn('[WebSocket] Closed. Reconnecting in 3s...');
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('[WebSocket] Error', err);
+      };
+    }
+
+    function handleWebSocketMessage(msg) {
+      const ev = msg.event;
+      const data = msg.data;
+
+      if (ev === 'STATE_SNAPSHOT') {
+        if (data.battery) updateBatteryUI(data.battery);
+        if (data.media) updateMediaUI(data.media);
+        if (data.clipboard) updateClipboardUI(data.clipboard);
+        if (data.notifications && data.notifications.length) {
+          notificationsList = data.notifications;
+          renderNotifications();
+        }
+      } else if (ev === 'BATTERY_STATUS') {
+        updateBatteryUI(data);
+      } else if (ev === 'NOTIFICATION_POSTED') {
+        addNotification(data);
+      } else if (ev === 'NOTIFICATION_DISMISSED') {
+        removeNotification(data.id);
+      } else if (ev === 'CALL_INCOMING') {
+        showCallAlert(data);
+      } else if (ev === 'MEDIA_PLAYBACK_STATUS') {
+        updateMediaUI(data);
+      } else if (ev === 'CLIPBOARD_UPDATE') {
+        updateClipboardUI(data);
+      } else if (ev === 'QUICK_DROP_SENT' || ev === 'QUICK_DROP_CLEARED') {
+        loadPendingDrops();
+      }
+    }
+
+    // Battery UI Update
+    function updateBatteryUI(data) {
+      const level = data.level || 0;
+      const isCharging = data.is_charging || false;
+
+      // Top bar
+      const topPill = document.getElementById('topBatteryPill');
+      topPill.classList.remove('hidden');
+      document.getElementById('topBatteryText').innerText = `Phone: ${level}% ${isCharging ? '⚡' : ''}`;
+      
+      // HUD Tab
+      document.getElementById('hudBatteryPercent').innerText = `${level}%`;
+      document.getElementById('hudChargingStatus').innerText = isCharging ? 'Charging (AC/Wireless)' : 'On Battery';
+      if (isCharging) {
+        document.getElementById('hudChargingZap').classList.remove('hidden');
+      } else {
+        document.getElementById('hudChargingZap').classList.add('hidden');
+      }
+
+      // Circle stroke
+      const circle = document.getElementById('batterySvgCircle');
+      const circumference = 2 * Math.PI * 38; // ~238.76
+      const offset = circumference - (level / 100) * circumference;
+      circle.style.strokeDashoffset = offset;
+      circle.className = level <= 20 ? 'text-rose-500' : (level <= 50 ? 'text-amber-400' : 'text-emerald-400');
+    }
+
+    // Media UI Update
+    function updateMediaUI(data) {
+      if (!data) return;
+      document.getElementById('mediaTrackTitle').innerText = data.title || 'Unknown Track';
+      document.getElementById('mediaArtist').innerText = data.artist || 'Unknown Artist';
+      document.getElementById('mediaAlbum').innerText = data.album || '';
+      isPlaying = data.is_playing || false;
+
+      const icon = document.getElementById('mediaPlayPauseIcon');
+      if (isPlaying) {
+        icon.setAttribute('data-lucide', 'pause');
+      } else {
+        icon.setAttribute('data-lucide', 'play');
+      }
+      lucide.createIcons();
+    }
+
+    function toggleMediaPlayPause() {
+      const action = isPlaying ? 'PAUSE' : 'PLAY';
+      sendMediaCommand(action);
+    }
+
+    function sendMediaCommand(action) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          event: 'MEDIA_CONTROL_COMMAND',
+          data: { action: action }
+        }));
+      }
+    }
+
+    // Notifications Mirroring
+    function addNotification(notif) {
+      // Deduplicate
+      notificationsList = notificationsList.filter(n => n.id !== notif.id);
+      notificationsList.unshift(notif);
+      if (notificationsList.length > 40) notificationsList.pop();
+      renderNotifications();
+
+      // Trigger Browser notification
+      if (Notification.permission === 'granted') {
+        new Notification(`${notif.app_name || 'Phone'}: ${notif.title}`, {
+          body: notif.text,
+          icon: '/favicon.ico'
+        });
+      }
+    }
+
+    function removeNotification(id) {
+      notificationsList = notificationsList.filter(n => n.id !== id);
+      renderNotifications();
+    }
+
+    function clearNotifications() {
+      notificationsList = [];
+      renderNotifications();
+    }
+
+    function renderNotifications() {
+      const container = document.getElementById('notificationsFeed');
+      const badge = document.getElementById('notifBadge');
+
+      if (notificationsList.length === 0) {
+        container.innerHTML = `
+          <div class="glass-panel border border-slate-800/80 rounded-2xl p-12 text-center text-slate-500">
+            <i data-lucide="bell-off" class="w-12 h-12 mx-auto mb-3 text-slate-700"></i>
+            <h4 class="text-sm font-semibold text-slate-400">No Notifications Mirroring Right Now</h4>
+            <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+              Make sure Notification Access is granted in the Android app. Incoming alerts will appear here in real time.
+            </p>
+          </div>
+        `;
+        badge.classList.add('hidden');
+      } else {
+        badge.classList.remove('hidden');
+        badge.innerText = notificationsList.length;
+
+        container.innerHTML = notificationsList.map(n => `
+          <div class="glass-panel border border-slate-800 rounded-xl p-4 flex items-start justify-between gap-4 hover:border-slate-700 transition-all">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0 mt-0.5">
+                <i data-lucide="message-square" class="w-5 h-5"></i>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">${n.app_name || 'App'}</span>
+                  <span class="text-[10px] text-slate-500">${n.timestamp ? new Date(n.timestamp).toLocaleTimeString() : 'Just now'}</span>
+                </div>
+                <h4 class="text-sm font-bold text-white">${n.title || ''}</h4>
+                <p class="text-xs text-slate-300 leading-relaxed">${n.text || ''}</p>
+              </div>
+            </div>
+            <button onclick="dismissNotification('${n.id}')" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors" title="Dismiss">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `).join('');
+      }
+      lucide.createIcons();
+    }
+
+    function dismissNotification(id) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          event: 'NOTIFICATION_ACTION',
+          data: { id: id, action: 'DISMISS' }
+        }));
+      }
+      removeNotification(id);
+    }
+
+    function requestDesktopNotifications() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            document.getElementById('desktopNotifBtn').innerText = '✓ Desktop Banners Enabled';
+            new Notification('PhotoSync Continuity', { body: 'Desktop notification mirroring enabled!' });
+          }
+        });
+      }
+    }
+
+    // Call Alert Handling
+    function showCallAlert(data) {
+      document.getElementById('callCallerName').innerText = data.caller_name || 'Unknown';
+      document.getElementById('callCallerNumber').innerText = data.phone_number || '';
+      document.getElementById('incomingCallBanner').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function dismissCallAlert() {
+      document.getElementById('incomingCallBanner').classList.add('hidden');
+    }
+
+    // Clipboard Handling
+    function updateClipboardUI(data) {
+      if (!data) return;
+      document.getElementById('clipboardTextArea').value = data.text || '';
+      document.getElementById('clipboardSourceText').innerText = `Source: ${data.source || 'Phone'}`;
+      document.getElementById('clipboardTimeText').innerText = `Updated: ${new Date().toLocaleTimeString()}`;
+    }
+
+    function sendClipboardToPhone() {
+      const text = document.getElementById('clipboardTextArea').value;
+      if (!text) return;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          event: 'CLIPBOARD_UPDATE',
+          data: { text: text, source: 'desktop' }
+        }));
+      }
+
+      fetch('/api/v1/clipboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, source: 'desktop' })
+      });
+    }
+
+    function copyToPcClipboard() {
+      const text = document.getElementById('clipboardTextArea').value;
+      if (text) {
+        navigator.clipboard.writeText(text);
+        alert('Copied to PC clipboard!');
+      }
+    }
+
+    // Quick-Drop (File Upload to Phone)
+    function handleDragOver(e) {
+      e.preventDefault();
+      document.getElementById('dropZone').classList.add('border-indigo-500', 'bg-indigo-950/20');
+    }
+
+    function handleDragLeave(e) {
+      e.preventDefault();
+      document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-950/20');
+    }
+
+    function handleFileDrop(e) {
+      e.preventDefault();
+      document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-950/20');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        uploadDropFile(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        uploadDropFile(e.target.files[0]);
+      }
+    }
+
+    async function uploadDropFile(file) {
+      const progressContainer = document.getElementById('uploadProgressContainer');
+      const progressBar = document.getElementById('uploadProgressBar');
+      const fileNameEl = document.getElementById('uploadFileName');
+      const percentEl = document.getElementById('uploadPercent');
+
+      progressContainer.classList.remove('hidden');
+      fileNameEl.innerText = file.name;
+      progressBar.style.width = '30%';
+      percentEl.innerText = '30%';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/v1/drop/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          progressBar.style.width = '100%';
+          percentEl.innerText = '100% (Sent to Phone!)';
+          setTimeout(() => {
+            progressContainer.classList.add('hidden');
+            loadPendingDrops();
+          }, 1500);
+        } else {
+          alert('Upload failed');
+          progressContainer.classList.add('hidden');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error uploading file');
+        progressContainer.classList.add('hidden');
+      }
+    }
+
+    async function loadPendingDrops() {
+      try {
+        const res = await fetch('/api/v1/drop/pending');
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = data.pending || [];
+        const container = document.getElementById('pendingDropsList');
+
+        if (list.length === 0) {
+          container.innerHTML = `<div class="text-slate-500 py-2">No files currently in drop queue.</div>`;
+        } else {
+          container.innerHTML = list.map(item => `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+              <div class="flex items-center gap-2 truncate">
+                <i data-lucide="file" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
+                <span class="truncate font-medium text-white">${item.filename}</span>
+                <span class="text-slate-500 text-[10px]">(${formatBytes(item.size)})</span>
+              </div>
+              <button onclick="deleteDrop('${item.file_id}')" class="text-slate-500 hover:text-rose-400 p-1" title="Delete">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          `).join('');
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.error('Failed to load pending drops', err);
+      }
+    }
+
+    async function deleteDrop(fileId) {
+      await fetch(`/api/v1/drop/${fileId}`, { method: 'DELETE' });
+      loadPendingDrops();
+    }
+
+    // Modal Helpers
     function openWelcomeModal() {
       document.getElementById('welcomeModal').classList.remove('hidden');
-      if (window.lucide) lucide.createIcons();
+      lucide.createIcons();
     }
 
     function closeWelcomeModal() {
       document.getElementById('welcomeModal').classList.add('hidden');
-      const dontShow = document.getElementById('dontShowWelcomeAgain').checked;
-      if (dontShow) {
+      if (document.getElementById('dontShowWelcomeAgain').checked) {
         localStorage.setItem('photosync_hide_welcome', 'true');
       }
+    }
+
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+      document.getElementById('settingsFeedback').classList.add('hidden');
+      fetchStorageSettings();
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
     }
 
     async function fetchPairingInfo() {
@@ -317,12 +997,10 @@
         document.getElementById('qrContainer').innerHTML = data.qr_svg;
         document.getElementById('serverAddress').innerText = `http://${data.host}:${data.port}`;
 
-        // Populate Welcome APK QR Code & Link
         if (data.apk_qr_svg) {
           document.getElementById('welcomeApkQrContainer').innerHTML = data.apk_qr_svg;
         }
         if (data.apk_download_url) {
-          apkDownloadUrl = data.apk_download_url;
           document.getElementById('welcomeApkUrlText').innerText = data.apk_download_url;
           document.getElementById('directDownloadApkBtn').href = data.apk_download_url;
         }
@@ -344,16 +1022,6 @@
       } catch (err) {
         console.error('Failed to fetch settings', err);
       }
-    }
-
-    function openSettingsModal() {
-      document.getElementById('settingsModal').classList.remove('hidden');
-      document.getElementById('settingsFeedback').classList.add('hidden');
-      fetchStorageSettings();
-    }
-
-    function closeSettingsModal() {
-      document.getElementById('settingsModal').classList.add('hidden');
     }
 
     async function saveStorageSettings() {
@@ -487,13 +1155,13 @@
       fetchRecentMedia();
     }
 
-    // Initial load and periodic refresh
+    // Startup Initializer
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       refreshData();
-      setInterval(refreshData, 10000);
+      connectWebSocket();
+      setInterval(refreshData, 12000);
 
-      // Auto-show welcome modal on first visit unless disabled
       if (!localStorage.getItem('photosync_hide_welcome')) {
         setTimeout(openWelcomeModal, 500);
       }

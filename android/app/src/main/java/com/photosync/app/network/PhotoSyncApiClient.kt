@@ -142,4 +142,59 @@ class PhotoSyncApiClient {
             tempFile?.delete()
         }
     }
+
+    suspend fun getPendingDrops(host: String, port: Int): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("http://$host:$port/api/v1/drop/pending")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: ""
+                    val json = JSONObject(body)
+                    val array = json.optJSONArray("pending") ?: JSONArray()
+                    val list = mutableListOf<JSONObject>()
+                    for (i in 0 until array.length()) {
+                        list.add(array.getJSONObject(i))
+                    }
+                    Result.success(list)
+                } else {
+                    Result.failure(Exception("Failed to fetch pending drops HTTP ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun downloadDropFile(
+        host: String,
+        port: Int,
+        fileId: String,
+        destinationFile: File
+    ): Result<File> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("http://$host:$port/api/v1/drop/download/$fileId")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    response.body?.byteStream()?.use { input ->
+                        FileOutputStream(destinationFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Result.success(destinationFile)
+                } else {
+                    Result.failure(Exception("Download failed with HTTP ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

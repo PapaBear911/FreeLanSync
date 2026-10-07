@@ -37,12 +37,18 @@ def get_backup_dir() -> Path:
     p.mkdir(parents=True, exist_ok=True)
     return p
 
+def get_quickdrop_dir() -> Path:
+    p = get_storage_dir() / "QuickDrop"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
 def get_database_path() -> Path:
     return BASE_DIR / "photosync.db"
 
 STORAGE_DIR = get_storage_dir()
 DATABASE_PATH = get_database_path()
 BACKUP_DIR = get_backup_dir()
+QUICKDROP_DIR = get_quickdrop_dir()
 
 # Server Network Settings
 SERVER_HOST = os.getenv("PHOTOSYNC_HOST", "0.0.0.0")

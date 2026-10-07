@@ -100,7 +100,7 @@ function createWindow() {
     height: 820,
     minWidth: 800,
     minHeight: 600,
-    title: 'PhotoSync Desktop Server',
+    title: 'PhotoSync & Synco Continuity Hub',
     backgroundColor: '#020617',
     autoHideMenuBar: true,
     webPreferences: {
@@ -117,8 +117,8 @@ function createWindow() {
       mainWindow.hide();
       if (tray) {
         tray.displayBalloon({
-          title: 'PhotoSync is still running',
-          content: 'PhotoSync is minimized to your system tray and continuing background photo sync.'
+          title: 'PhotoSync & Synco is running',
+          content: 'Running in your system tray with active notification mirroring and backup sync.'
         });
       }
     }
@@ -128,7 +128,7 @@ function createWindow() {
 function setupTray() {
   const icon = createTrayIcon();
   tray = new Tray(icon);
-  tray.setToolTip('PhotoSync Desktop Server (Running)');
+  tray.setToolTip('PhotoSync & Synco Continuity Hub (Active)');
 
   const contextMenu = Menu.buildFromTemplate([
     {

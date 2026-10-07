@@ -4,6 +4,14 @@ __pycache__/
 *$py.class
 *.sqlite3
 .pytest_cache/
+photosync.db*
+photosync_config.json
+
+# Node & Desktop App
+desktop-app/node_modules/
+desktop-app/dist-electron/
+desktop-app/dist-package/
+dist/
 
 # Storage & Backups
 storage/

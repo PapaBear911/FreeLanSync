@@ -3,7 +3,9 @@ import secrets
 import time
 import io
 import qrcode
+import qrcode.image.svg
 import json
+import re
 from typing import Dict, Optional, Tuple
 from .config import get_local_ip, SERVER_PORT
 from .database import register_device
@@ -63,27 +65,16 @@ class PairingManager:
             "qr_payload": json.dumps(payload)
         }
 
-    def _matrix_to_svg(self, text_payload: str, size_px: int = 260) -> str:
-        qr = qrcode.QRCode(
-            version=None,
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=10,
-            border=2,
+    def _matrix_to_svg(self, text_payload: str, size_px: int = 240) -> str:
+        img = qrcode.make(text_payload, image_factory=qrcode.image.svg.SvgPathImage, border=2)
+        svg_xml = img.to_string().decode("utf-8")
+        # Replace default mm width/height with target pixel size and dashboard styling
+        return re.sub(
+            r'<svg\s+width="[^"]*"\s+height="[^"]*"',
+            f'<svg width="{size_px}" height="{size_px}" class="rounded-xl shadow-md bg-white p-2"',
+            svg_xml,
+            count=1
         )
-        qr.add_data(text_payload)
-        qr.make(fit=True)
-        matrix = qr.get_matrix()
-        width = len(matrix)
-        scale = 8
-        svg_parts = [
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width * scale} {width * scale}" width="{size_px}" height="{size_px}" class="rounded-xl shadow-md bg-white p-2">'
-        ]
-        for y, row in enumerate(matrix):
-            for x, val in enumerate(row):
-                if val:
-                    svg_parts.append(f'<rect x="{x * scale}" y="{y * scale}" width="{scale}" height="{scale}" fill="#1e293b"/>')
-        svg_parts.append('</svg>')
-        return "".join(svg_parts)
 
     def generate_qr_svg(self) -> str:
         """Generate QR Code as SVG string for the Web Dashboard pairing."""

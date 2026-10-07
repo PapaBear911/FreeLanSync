@@ -1,12 +1,13 @@
 """FastAPI application entrypoint for PhotoSync Server."""
 from contextlib import asynccontextmanager
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, Form, status
+from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, Form, status, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
+import json
 
 from .config import (
     SERVICE_NAME,
@@ -28,6 +29,7 @@ from .database import (
 from .auth import pairing_manager
 from .discovery import mdns_advertiser
 from .storage import storage_manager
+from .websocket_manager import ws_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,11 +72,6 @@ class PairResponse(BaseModel):
     success: bool
     auth_token: Optional[str] = None
     message: str
-
-class HashCheckItem(BaseModel):
-    sha256: str
-    filename: Optional[str] = None
-    size: Optional[int] = None
 
 class BatchCheckRequest(BaseModel):
     hashes: List[str]
@@ -216,6 +213,141 @@ async def view_photo(relative_path: str):
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(file_path)
+
+# --- Real-Time Device Continuity WebSocket Bridge ---
+
+@app.websocket("/api/v1/ws/device-bridge")
+async def device_bridge_ws(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None),
+    client_type: str = Query("device")
+):
+    """
+    Duplex WebSocket connection for Real-Time Continuity:
+    - UI Clients (web dashboard / electron app) connect with client_type="ui"
+    - Android Devices connect with client_type="device" and bearer auth token
+    """
+    if client_type == "ui":
+        await ws_manager.connect_ui(websocket)
+        try:
+            while True:
+                msg_text = await websocket.receive_text()
+                try:
+                    payload = json.loads(msg_text)
+                    event_type = payload.get("event")
+                    event_data = payload.get("data", {})
+                    await ws_manager.handle_ui_event(websocket, event_type, event_data)
+                except Exception as e:
+                    print(f"Error handling UI event: {e}")
+        except WebSocketDisconnect:
+            ws_manager.disconnect_ui(websocket)
+        except Exception:
+            ws_manager.disconnect_ui(websocket)
+    else:
+        # Authenticate Device
+        if not token:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        device = get_device_by_token(token)
+        if not device:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        
+        device_id = device["device_id"]
+        device_name = device.get("device_name", "Android Phone")
+        await ws_manager.connect_device(device_id, websocket, device_name)
+        try:
+            while True:
+                msg_text = await websocket.receive_text()
+                try:
+                    payload = json.loads(msg_text)
+                    event_type = payload.get("event")
+                    event_data = payload.get("data", {})
+                    await ws_manager.handle_device_event(device_id, event_type, event_data)
+                except Exception as e:
+                    print(f"Error handling device event: {e}")
+        except WebSocketDisconnect:
+            ws_manager.disconnect_device(device_id, websocket)
+        except Exception:
+            ws_manager.disconnect_device(device_id, websocket)
+
+# --- Quick-Drop (Bidirectional File Transfer) Endpoints ---
+
+@app.post("/api/v1/drop/upload")
+async def upload_quick_drop(file: UploadFile = File(...)):
+    """Upload a file from PC to send directly to paired Android devices."""
+    contents = await file.read()
+    orig_name = file.filename or "dropped_file"
+    drop_info = storage_manager.save_quick_drop(
+        original_filename=orig_name,
+        file_bytes=contents,
+        mime_type=file.content_type
+    )
+    # Broadcast QUICK_DROP_AVAILABLE to all connected phones
+    await ws_manager.broadcast_to_devices("QUICK_DROP_AVAILABLE", {
+        "file_id": drop_info["file_id"],
+        "filename": drop_info["filename"],
+        "size": drop_info["size"],
+        "sha256": drop_info["sha256"],
+        "download_url": f"/api/v1/drop/download/{drop_info['file_id']}"
+    })
+    # Also notify UI
+    await ws_manager.broadcast_to_ui("QUICK_DROP_SENT", drop_info)
+    return {"success": True, "drop": drop_info}
+
+@app.get("/api/v1/drop/pending")
+async def list_pending_quick_drops():
+    """List pending Quick-Drop files waiting for phone download."""
+    return {"pending": storage_manager.list_pending_drops()}
+
+@app.get("/api/v1/drop/download/{file_id}")
+async def download_quick_drop(file_id: str):
+    """Download a pending Quick-Drop file to the Android device."""
+    file_path = storage_manager.get_drop_file_path(file_id)
+    if not file_path or not file_path.exists():
+        raise HTTPException(status_code=404, detail="Quick-Drop file not found or already downloaded")
+    parts = file_path.name.split("_", 1)
+    orig_name = parts[1] if len(parts) > 1 else file_path.name
+    return FileResponse(file_path, filename=orig_name)
+
+@app.delete("/api/v1/drop/{file_id}")
+async def delete_quick_drop(file_id: str):
+    """Delete a quick drop file after download or cancel."""
+    success = storage_manager.delete_drop_file(file_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="File not found")
+    await ws_manager.broadcast_to_ui("QUICK_DROP_CLEARED", {"file_id": file_id})
+    return {"success": True, "message": "Quick-Drop file removed"}
+
+# --- Clipboard Sharing Endpoints ---
+
+class ClipboardPayload(BaseModel):
+    text: str
+    source: Optional[str] = "desktop"
+
+@app.post("/api/v1/clipboard")
+async def update_clipboard(payload: ClipboardPayload):
+    """Update shared clipboard from PC or REST client."""
+    import datetime
+    data = {
+        "text": payload.text,
+        "source": payload.source,
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+    ws_manager.latest_state["clipboard"] = data
+    await ws_manager.broadcast_to_devices("CLIPBOARD_UPDATE", data)
+    await ws_manager.broadcast_to_ui("CLIPBOARD_UPDATE", data)
+    return {"success": True, "clipboard": data}
+
+@app.get("/api/v1/clipboard")
+async def get_clipboard():
+    """Get current shared clipboard content."""
+    return {"clipboard": ws_manager.latest_state.get("clipboard")}
+
+@app.get("/api/v1/continuity/status")
+async def get_continuity_status():
+    """Get snapshot of current device continuity status."""
+    return ws_manager.latest_state
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():

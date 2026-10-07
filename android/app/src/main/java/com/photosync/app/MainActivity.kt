@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var prefs: PreferencesManager
     private lateinit var syncManager: SyncManager
     private lateinit var nsdManager: NsdDiscoveryManager
+    private var telemetryManager: com.photosync.app.service.DeviceTelemetryManager? = null
     private val apiClient = PhotoSyncApiClient()
 
     private val permissionLauncher = registerForActivityResult(
@@ -47,6 +48,12 @@ class MainActivity : ComponentActivity() {
         prefs = PreferencesManager(this)
         syncManager = SyncManager(this)
         nsdManager = NsdDiscoveryManager(this)
+
+        val initialConfig = prefs.getServerConfig()
+        if (initialConfig.isPaired) {
+            telemetryManager = com.photosync.app.service.DeviceTelemetryManager(this).also { it.startTelemetry() }
+            com.photosync.app.network.DeviceBridgeWebSocket.getInstance().connect(initialConfig.host, initialConfig.port, initialConfig.authToken)
+        }
 
         requestRequiredPermissions()
 
@@ -91,6 +98,8 @@ class MainActivity : ComponentActivity() {
                                     result.onSuccess { token ->
                                         prefs.savePairing(host, port, token, serverConfig.deviceName)
                                         serverConfig = prefs.getServerConfig()
+                                        telemetryManager = com.photosync.app.service.DeviceTelemetryManager(this@MainActivity).also { it.startTelemetry() }
+                                        com.photosync.app.network.DeviceBridgeWebSocket.getInstance().connect(host, port, token)
                                         syncManager.schedulePeriodicSync()
                                         nsdManager.stopDiscovery()
                                         Toast.makeText(this@MainActivity, "Paired successfully!", Toast.LENGTH_SHORT).show()
@@ -147,6 +156,9 @@ class MainActivity : ComponentActivity() {
                             onUnpairClicked = {
                                 prefs.clearPairing()
                                 syncManager.cancelPeriodicSync()
+                                telemetryManager?.stopTelemetry()
+                                telemetryManager = null
+                                com.photosync.app.network.DeviceBridgeWebSocket.getInstance().disconnect()
                                 serverConfig = prefs.getServerConfig()
                                 nsdManager.startDiscovery()
                             }
@@ -179,6 +191,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        telemetryManager?.stopTelemetry()
+        com.photosync.app.network.DeviceBridgeWebSocket.getInstance().disconnect()
         nsdManager.stopDiscovery()
     }
 }

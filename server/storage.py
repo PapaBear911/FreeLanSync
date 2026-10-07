@@ -4,13 +4,12 @@ import hashlib
 import datetime
 from pathlib import Path
 from typing import Tuple, Optional
-from .config import get_backup_dir
+from .config import get_backup_dir, get_quickdrop_dir
 from .database import record_media_backup
 
 def sanitize_filename(filename: str) -> str:
     """Sanitize filename to prevent directory traversal or invalid characters."""
-    clean = os.path.basename(filename)
-    # Remove invalid Windows chars: < > : " / \ | ? *
+    clean = Path(filename).name
     for ch in '<>:"/\\|?*':
         clean = clean.replace(ch, '_')
     return clean.strip() or "unnamed_media"
@@ -122,5 +121,65 @@ class StorageManager:
         )
 
         return True, rel_path, "File successfully saved and indexed."
+
+    def save_quick_drop(
+        self,
+        original_filename: str,
+        file_bytes: bytes,
+        mime_type: Optional[str] = None
+    ) -> dict:
+        import uuid
+        drop_dir = get_quickdrop_dir()
+        file_id = uuid.uuid4().hex[:12]
+        clean_file = sanitize_filename(original_filename)
+        hasher = hashlib.sha256(file_bytes)
+        sha256 = hasher.hexdigest().lower()
+        
+        target_path = drop_dir / f"{file_id}_{clean_file}"
+        with open(target_path, "wb") as f:
+            f.write(file_bytes)
+            
+        return {
+            "file_id": file_id,
+            "filename": clean_file,
+            "size": len(file_bytes),
+            "sha256": sha256,
+            "mime_type": mime_type or "application/octet-stream",
+            "path": str(target_path),
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+
+    def list_pending_drops(self) -> list:
+        drop_dir = get_quickdrop_dir()
+        results = []
+        for p in drop_dir.glob("*_*"):
+            if p.is_file():
+                parts = p.name.split("_", 1)
+                file_id = parts[0]
+                orig_name = parts[1] if len(parts) > 1 else p.name
+                stat = p.stat()
+                results.append({
+                    "file_id": file_id,
+                    "filename": orig_name,
+                    "size": stat.st_size,
+                    "created_at": datetime.datetime.fromtimestamp(stat.st_ctime).isoformat()
+                })
+        # Sort newest first
+        results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return results
+
+    def get_drop_file_path(self, file_id: str) -> Optional[Path]:
+        drop_dir = get_quickdrop_dir()
+        for p in drop_dir.glob(f"{file_id}_*"):
+            if p.is_file():
+                return p
+        return None
+
+    def delete_drop_file(self, file_id: str) -> bool:
+        path = self.get_drop_file_path(file_id)
+        if path and path.exists():
+            path.unlink()
+            return True
+        return False
 
 storage_manager = StorageManager()
