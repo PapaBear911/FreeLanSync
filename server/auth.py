@@ -11,10 +11,17 @@ from .config import get_local_ip, SERVER_PORT
 from .database import register_device
 
 class PairingManager:
+    MAX_ATTEMPTS = 5
+    LOCKOUT_BASE_SECONDS = 30
+    LOCKOUT_MAX_SECONDS = 600
+
     def __init__(self, pin_expiry_seconds: int = 600):
         self.pin_expiry_seconds = pin_expiry_seconds
         self.current_pin: Optional[str] = None
         self.pin_created_at: float = 0.0
+        # TD-001: brute-force defence — failed attempt counter + lockout backoff.
+        self.failed_attempts: int = 0
+        self.locked_until: float = 0.0
 
     def generate_pin(self) -> str:
         """Generate a random 6-digit PIN."""
@@ -32,18 +39,34 @@ class PairingManager:
         """Validate PIN and generate a secure permanent device auth token."""
         if not self.current_pin:
             return None
-        
+
         if (time.time() - self.pin_created_at) > self.pin_expiry_seconds:
             self.current_pin = None
+            self.failed_attempts = 0
+            self.locked_until = 0.0
+            return None
+
+        # TD-001: reject during lockout regardless of PIN correctness.
+        if time.time() < self.locked_until:
             return None
 
         if secrets.compare_digest(self.current_pin.strip(), pin.strip()):
+            self.failed_attempts = 0
+            self.locked_until = 0.0
             auth_token = secrets.token_urlsafe(32)
             register_device(device_name=device_name, device_id=device_id, auth_token=auth_token)
             # Cycle PIN after successful pairing for security
             self.generate_pin()
             return auth_token
-        
+
+        # Wrong PIN: count the attempt and apply exponential backoff lockout.
+        self.failed_attempts += 1
+        if self.failed_attempts >= self.MAX_ATTEMPTS:
+            backoff = min(
+                self.LOCKOUT_MAX_SECONDS,
+                self.LOCKOUT_BASE_SECONDS * (2 ** (self.failed_attempts - self.MAX_ATTEMPTS)),
+            )
+            self.locked_until = time.time() + backoff
         return None
 
     def get_pairing_info(self) -> Dict[str, any]:

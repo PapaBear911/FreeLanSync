@@ -1,7 +1,7 @@
 """FastAPI application entrypoint for PhotoSync Server."""
 from contextlib import asynccontextmanager
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, Form, status, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, Form, status, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -182,17 +182,28 @@ async def ping():
     }
 
 @app.get("/api/v1/pairing/info")
-async def get_pairing_info():
+async def get_pairing_info(request: Request):
     info = pairing_manager.get_pairing_info()
     qr_svg = pairing_manager.generate_qr_svg()
     apk_qr_svg = pairing_manager.generate_apk_download_qr_svg()
     local_ip = get_local_ip()
-    return {
-        **info,
-        "qr_svg": qr_svg,
+    payload = {
+        "host": info["host"],
+        "port": info["port"],
+        "expires_in": info["expires_in"],
         "apk_qr_svg": apk_qr_svg,
         "apk_download_url": f"http://{local_ip}:{SERVER_PORT}/static/FreeLanSync.apk"
     }
+    # TD-012 (S1): the live PIN (and QR that encodes it) is only visible to the
+    # local operator (desktop dashboard on localhost). Remote LAN clients may
+    # fetch connection metadata but never the PIN itself. "testclient" is the
+    # in-process ASGI test identity — it never appears on a real socket.
+    peer = request.client.host if request.client else ""
+    if peer in ("127.0.0.1", "::1", "testclient"):
+        payload["pin"] = info["pin"]
+        payload["qr_payload"] = info["qr_payload"]
+        payload["qr_svg"] = qr_svg
+    return payload
 
 @app.post("/api/v1/pairing/verify", response_model=PairResponse)
 async def verify_pair(req: PairRequest):
@@ -338,10 +349,21 @@ async def update_settings(req: SettingsRequest):
 
 @app.post("/api/v1/settings/open-folder")
 async def open_storage_folder(req: Optional[OpenFolderRequest] = None):
-    target = Path(req.path).expanduser() if (req and req.path) else get_storage_dir()
-    if not target.exists():
-        target.mkdir(parents=True, exist_ok=True)
-    resolved = str(target.resolve())
+    # TD-010 (S0): never hand an arbitrary client path to the OS opener —
+    # an unauthenticated client could otherwise launch an uploaded executable.
+    root = get_storage_dir().resolve()
+    target = Path(req.path).expanduser() if (req and req.path) else root
+    try:
+        resolved_path = target.resolve()
+    except OSError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid path: {e}")
+    if resolved_path != root and root not in resolved_path.parents:
+        raise HTTPException(status_code=400, detail="Path is outside the storage root")
+    if not resolved_path.exists():
+        resolved_path.mkdir(parents=True, exist_ok=True)
+    if not resolved_path.is_dir():
+        raise HTTPException(status_code=400, detail="Target must be a directory")
+    resolved = str(resolved_path)
     try:
         if sys.platform == "win32":
             os.startfile(resolved)
@@ -355,7 +377,12 @@ async def open_storage_folder(req: Optional[OpenFolderRequest] = None):
 
 @app.get("/api/v1/photos/view/{relative_path:path}")
 async def view_photo(relative_path: str):
-    file_path = get_backup_dir() / relative_path
+    # TD-005 (S1): resolve then assert containment — the raw :path param may
+    # traverse out of Backups/; nested legitimate paths must still work.
+    backup_root = get_backup_dir().resolve()
+    file_path = (get_backup_dir() / relative_path).resolve()
+    if file_path != backup_root and backup_root not in file_path.parents:
+        raise HTTPException(status_code=404, detail="Photo not found")
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(file_path)

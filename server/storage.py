@@ -136,8 +136,20 @@ class StorageManager:
         sha256 = hasher.hexdigest().lower()
         
         target_path = drop_dir / f"{file_id}_{clean_file}"
-        with open(target_path, "wb") as f:
-            f.write(file_bytes)
+        # TD-006: stage to .tmp then atomically replace; crash/ENOSPC must never
+        # leave a truncated file that list_pending_drops advertises as complete.
+        tmp_path = drop_dir / f".tmp_{file_id}_{clean_file}.tmp"
+        try:
+            with open(tmp_path, "wb") as f:
+                f.write(file_bytes)
+            os.replace(tmp_path, target_path)
+        except Exception:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            raise
             
         return {
             "file_id": file_id,
@@ -154,6 +166,12 @@ class StorageManager:
         results = []
         for p in drop_dir.glob("*_*"):
             if p.is_file():
+                # TD-006: never advertise staging tmp files; crash/ENOSPC mid-write
+                # must not surface a truncated file as complete.
+                # Staging names always start with ".tmp_"; final names are
+                # "{hex12}_{clean}" so they never start with ".".
+                if p.name.startswith(".tmp_"):
+                    continue
                 parts = p.name.split("_", 1)
                 file_id = parts[0]
                 orig_name = parts[1] if len(parts) > 1 else p.name

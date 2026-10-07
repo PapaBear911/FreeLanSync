@@ -76,12 +76,15 @@ def get_device_by_token(auth_token: str, db_path: Optional[Path] = None) -> Opti
         return None
 
 def check_existing_hashes(device_id: str, hashes: List[str], db_path: Optional[Path] = None) -> List[str]:
-    """Return set of hashes that already exist in database for this device or system."""
+    """Return hashes already backed up for THIS device (UNIQUE is (device_id, sha256))."""
     if not hashes:
         return []
     with get_connection(db_path) as conn:
         placeholders = ",".join(["?"] * len(hashes))
-        cur = conn.execute(f"SELECT sha256 FROM media_files WHERE sha256 IN ({placeholders})", hashes)
+        cur = conn.execute(
+            f"SELECT sha256 FROM media_files WHERE device_id = ? AND sha256 IN ({placeholders})",
+            [device_id, *hashes],
+        )
         return [r["sha256"] for r in cur.fetchall()]
 
 def record_media_backup(
@@ -103,8 +106,9 @@ def record_media_backup(
 
 def get_all_devices(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     with get_connection(db_path) as conn:
+        # TD-013: never expose auth_token to dashboard/list consumers.
         cur = conn.execute("""
-            SELECT d.*, 
+            SELECT d.id, d.device_name, d.device_id, d.created_at, d.last_seen_at, d.is_active,
                    COUNT(m.id) as total_files,
                    COALESCE(SUM(m.file_size), 0) as total_bytes
             FROM devices d

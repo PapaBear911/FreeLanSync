@@ -4,6 +4,13 @@ __pycache__/
 *$py.class
 *.sqlite3
 .pytest_cache/
+.venv/
+venv/
+ENV/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 photosync.db*
 photosync_config.json
 freelansync.db*
@@ -16,7 +23,11 @@ releases/*.apk
 desktop-app/node_modules/
 desktop-app/dist-electron/
 desktop-app/dist-package/
+desktop-app/out/
 dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Storage & Backups
 storage/
@@ -28,3 +39,14 @@ android/.gradle/
 android/app/build/
 android/local.properties
 gradle-8.7/
+*.hprof
+*.jks
+*.keystore
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
