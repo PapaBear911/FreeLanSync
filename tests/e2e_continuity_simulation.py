@@ -230,6 +230,14 @@ def run_simulation():
     assert img_hash in batch_res2.json()["existing_hashes"]
     print("    -> 100% Deduplication verified on secondary check!")
 
+    # Cleanup test photo from backup dir
+    try:
+        backed_up = BACKUP_DIR / up_res.json()["relative_path"]
+        if backed_up.exists():
+            backed_up.unlink(missing_ok=True)
+    except Exception:
+        pass
+
     print("\n" + "=" * 65)
     print("  ALL 11/11 CONTINUITY & SYNCO VERIFICATION STEPS PASSED 100%!")
     print("=" * 65)

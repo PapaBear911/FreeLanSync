@@ -241,6 +241,18 @@ def run_freelansync_simulation():
             assert any(t["name"] == folder_name for t in trans_items)
             print(f"    -> Transfers directory catalog contains {len(trans_items)} verified items.")
 
+            # Cleanup simulation artifacts
+            try:
+                raw_file = transfers_dir / "render_project_4k.raw"
+                if raw_file.exists():
+                    raw_file.unlink(missing_ok=True)
+                proj_dir = transfers_dir / folder_name
+                if proj_dir.exists():
+                    import shutil
+                    shutil.rmtree(proj_dir, ignore_errors=True)
+            except Exception:
+                pass
+
     print("\n" + "=" * 70)
     print("  ALL 12/12 FREELANSYNC & LANSYNC GIGABIT TESTS PASSED 100%!")
     print("=" * 70)
