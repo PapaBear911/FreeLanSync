@@ -1,0 +1,115 @@
+"""File system storage manager with SHA-256 deduplication and date hierarchy."""
+import os
+import hashlib
+import datetime
+from pathlib import Path
+from typing import Tuple, Optional
+from .config import BACKUP_DIR
+from .database import record_media_backup
+
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent directory traversal or invalid characters."""
+    clean = os.path.basename(filename)
+    # Remove invalid Windows chars: < > : " / \ | ? *
+    for ch in '<>:"/\\|?*':
+        clean = clean.replace(ch, '_')
+    return clean.strip() or "unnamed_media"
+
+def parse_date_hierarchy(taken_at_iso: Optional[str]) -> Tuple[str, str]:
+    """Extract (YYYY, MM) folder path from ISO timestamp or fallback to current date."""
+    if taken_at_iso:
+        try:
+            # Handle timestamps with or without Z/offset
+            dt = datetime.datetime.fromisoformat(taken_at_iso.replace('Z', '+00:00'))
+            return f"{dt.year:04d}", f"{dt.month:02d}"
+        except Exception:
+            pass
+    now = datetime.datetime.now()
+    return f"{now.year:04d}", f"{now.month:02d}"
+
+class StorageManager:
+    def __init__(self, backup_dir: Path = BACKUP_DIR):
+        self.backup_dir = backup_dir
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+
+    def save_media(
+        self,
+        device_id: str,
+        device_name: str,
+        original_filename: str,
+        file_bytes: bytes,
+        expected_sha256: str,
+        taken_at_iso: Optional[str] = None,
+        mime_type: Optional[str] = None
+    ) -> Tuple[bool, str, str]:
+        """
+        Verify SHA-256, deduplicate, and write file atomically.
+        Returns: (success: bool, relative_path: str, message: str)
+        """
+        # 1. Compute and verify actual SHA-256
+        hasher = hashlib.sha256()
+        hasher.update(file_bytes)
+        actual_sha256 = hasher.hexdigest().lower()
+
+        if expected_sha256 and expected_sha256.lower() != actual_sha256:
+            return False, "", f"SHA-256 mismatch. Expected {expected_sha256}, got {actual_sha256}"
+
+        # 2. Determine target path: Backups/<DeviceName>/<YYYY>/<MM>/<filename>
+        clean_device = sanitize_filename(device_name)
+        year_str, month_str = parse_date_hierarchy(taken_at_iso)
+        clean_file = sanitize_filename(original_filename)
+
+        target_dir = self.backup_dir / clean_device / year_str / month_str
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        target_path = target_dir / clean_file
+        
+        # If file with same name exists, check if identical hash or append counter
+        if target_path.exists():
+            with open(target_path, "rb") as existing_file:
+                existing_hash = hashlib.sha256(existing_file.read()).hexdigest().lower()
+            if existing_hash == actual_sha256:
+                # Already exists and content is identical
+                rel_path = str(target_path.relative_to(self.backup_dir))
+                record_media_backup(
+                    device_id=device_id,
+                    sha256=actual_sha256,
+                    original_filename=clean_file,
+                    relative_path=rel_path,
+                    file_size=len(file_bytes),
+                    mime_type=mime_type,
+                    taken_at=taken_at_iso
+                )
+                return True, rel_path, "File already archived (deduplicated)."
+            else:
+                # Collision with different file: append short hash
+                stem = target_path.stem
+                suffix = target_path.suffix
+                target_path = target_dir / f"{stem}_{actual_sha256[:8]}{suffix}"
+
+        # 3. Atomic write: write to temp file then rename
+        temp_path = target_path.with_suffix(f"{target_path.suffix}.tmp_{os.getpid()}")
+        try:
+            with open(temp_path, "wb") as f:
+                f.write(file_bytes)
+            temp_path.replace(target_path)
+        except Exception as e:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise e
+
+        # 4. Record in database
+        rel_path = str(target_path.relative_to(self.backup_dir))
+        record_media_backup(
+            device_id=device_id,
+            sha256=actual_sha256,
+            original_filename=clean_file,
+            relative_path=rel_path,
+            file_size=len(file_bytes),
+            mime_type=mime_type,
+            taken_at=taken_at_iso
+        )
+
+        return True, rel_path, "File successfully saved and indexed."
+
+storage_manager = StorageManager()

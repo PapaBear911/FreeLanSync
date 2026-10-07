@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+.pytest_cache/
+
+# Storage & Backups
+storage/
+
+# Gradle / Android
+.gradle/
+build/
+android/.gradle/
+android/app/build/
+android/local.properties
+gradle-8.7/

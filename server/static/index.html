@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhotoSync Desktop Server</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .status-pulse { animation: pulse-subtle 2s infinite ease-in-out; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <i data-lucide="camera" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            PhotoSync Server
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 status-pulse"></span>
+              Online
+            </span>
+          </h1>
+          <p class="text-xs text-slate-400" id="serverAddress">Detecting local network...</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-4">
+        <button onclick="refreshData()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors" title="Refresh">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+
+    <!-- Top Grid: Quick Stats & Pairing -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Pairing Card -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">Device Pairing</span>
+            <span class="text-xs text-slate-400" id="pinTimer">Expires in --</span>
+          </div>
+
+          <h2 class="text-xl font-bold text-white">Pair Your Android Phone</h2>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Scan the QR code with the PhotoSync Android app or enter the 6-digit PIN to establish an authorized local link.
+          </p>
+
+          <!-- QR Code Container -->
+          <div class="flex justify-center py-2" id="qrContainer">
+            <div class="w-48 h-48 bg-slate-800 animate-pulse rounded-xl flex items-center justify-center">
+              <span class="text-xs text-slate-500">Generating QR...</span>
+            </div>
+          </div>
+
+          <!-- PIN Display -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
+            <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">6-Digit PIN:</span>
+            <span class="text-2xl font-mono font-black text-indigo-400 tracking-widest" id="pinCode">------</span>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-slate-800 flex items-center gap-2 text-xs text-slate-400">
+          <i data-lucide="wifi" class="w-4 h-4 text-emerald-400"></i>
+          <span>Auto-discovered via mDNS (<code class="text-slate-300">_photosync._tcp</code>)</span>
+        </div>
+      </div>
+
+      <!-- Stats and Connected Devices -->
+      <div class="lg:col-span-2 space-y-6">
+
+        <!-- Top Metrics Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs uppercase font-semibold">Paired Devices</span>
+              <i data-lucide="smartphone" class="w-4 h-4 text-indigo-400"></i>
+            </div>
+            <div class="text-3xl font-extrabold text-white" id="statDevices">0</div>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs uppercase font-semibold">Total Backed Up</span>
+              <i data-lucide="image" class="w-4 h-4 text-emerald-400"></i>
+            </div>
+            <div class="text-3xl font-extrabold text-white" id="statFiles">0</div>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs uppercase font-semibold">Storage Used</span>
+              <i data-lucide="hard-drive" class="w-4 h-4 text-violet-400"></i>
+            </div>
+            <div class="text-3xl font-extrabold text-white" id="statStorage">0 MB</div>
+          </div>
+        </div>
+
+        <!-- Paired Devices Table -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
+          <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
+            Active & Paired Devices
+          </h3>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="text-xs uppercase bg-slate-950/60 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="px-4 py-3 rounded-l-lg">Device Name</th>
+                  <th class="px-4 py-3">Device ID</th>
+                  <th class="px-4 py-3">Synced Files</th>
+                  <th class="px-4 py-3">Storage Size</th>
+                  <th class="px-4 py-3 rounded-r-lg">Last Active</th>
+                </tr>
+              </thead>
+              <tbody id="devicesTableBody" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="5" class="px-4 py-6 text-center text-slate-500">
+                    No devices paired yet. Scan the QR code to pair!
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Recent Media Gallery Preview -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="images" class="w-5 h-5 text-violet-400"></i>
+            Recent Backup Stream
+          </h3>
+          <p class="text-xs text-slate-400">Photos and videos archived directly to your PC file system</p>
+        </div>
+        <span class="text-xs text-slate-500" id="galleryCount">0 items</span>
+      </div>
+
+      <div id="mediaGallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div class="col-span-full py-12 text-center text-slate-500">
+          <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 text-slate-600"></i>
+          <p>No photos or videos backed up yet.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
+    <p>PhotoSync Local Desktop Server • Private & Local Wi-Fi Backup</p>
+  </footer>
+
+  <script>
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const dm = 2;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    async function fetchPairingInfo() {
+      try {
+        const res = await fetch('/api/v1/pairing/info');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('pinCode').innerText = data.pin;
+        document.getElementById('qrContainer').innerHTML = data.qr_svg;
+        document.getElementById('serverAddress').innerText = `http://${data.host}:${data.port}`;
+        
+        let seconds = data.expires_in;
+        document.getElementById('pinTimer').innerText = `Expires in ${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+      } catch (err) {
+        console.error('Failed to fetch pairing info', err);
+      }
+    }
+
+    async function fetchDevices() {
+      try {
+        const res = await fetch('/api/v1/devices');
+        if (!res.ok) return;
+        const data = await res.json();
+        const devices = data.devices || [];
+
+        document.getElementById('statDevices').innerText = devices.length;
+
+        let totalFiles = 0;
+        let totalBytes = 0;
+        devices.forEach(d => {
+          totalFiles += (d.total_files || 0);
+          totalBytes += (d.total_bytes || 0);
+        });
+
+        document.getElementById('statFiles').innerText = totalFiles.toLocaleString();
+        document.getElementById('statStorage').innerText = formatBytes(totalBytes);
+
+        const tbody = document.getElementById('devicesTableBody');
+        if (devices.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">No devices paired yet. Scan the QR code to pair!</td></tr>`;
+        } else {
+          tbody.innerHTML = devices.map(d => `
+            <tr class="hover:bg-slate-800/40 transition-colors">
+              <td class="px-4 py-3 font-medium text-white flex items-center gap-2">
+                <i data-lucide="smartphone" class="w-4 h-4 text-indigo-400"></i>
+                ${d.device_name}
+              </td>
+              <td class="px-4 py-3 font-mono text-xs text-slate-400">${d.device_id.substring(0, 12)}...</td>
+              <td class="px-4 py-3 text-slate-300 font-semibold">${(d.total_files || 0).toLocaleString()}</td>
+              <td class="px-4 py-3 text-slate-400">${formatBytes(d.total_bytes)}</td>
+              <td class="px-4 py-3 text-xs text-slate-400">${d.last_seen_at || 'Just now'}</td>
+            </tr>
+          `).join('');
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.error('Failed to fetch devices', err);
+      }
+    }
+
+    async function fetchRecentMedia() {
+      try {
+        const res = await fetch('/api/v1/photos/recent');
+        if (!res.ok) return;
+        const data = await res.json();
+        const media = data.recent_media || [];
+        document.getElementById('galleryCount').innerText = `${media.length} items`;
+
+        const gallery = document.getElementById('mediaGallery');
+        if (media.length === 0) {
+          gallery.innerHTML = `
+            <div class="col-span-full py-12 text-center text-slate-500">
+              <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 text-slate-600"></i>
+              <p>No photos or videos backed up yet.</p>
+            </div>
+          `;
+        } else {
+          gallery.innerHTML = media.map(m => {
+            const isVideo = m.mime_type && m.mime_type.startsWith('video');
+            return `
+              <div class="group relative aspect-square bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-sm hover:border-indigo-500/50 transition-all">
+                ${isVideo ? `
+                  <div class="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                    <i data-lucide="video" class="w-8 h-8 text-indigo-400 mb-1"></i>
+                    <span class="text-[10px] truncate max-w-[80%]">${m.original_filename}</span>
+                  </div>
+                ` : `
+                  <img src="/api/v1/photos/view/${encodeURIComponent(m.relative_path)}" 
+                       alt="${m.original_filename}" 
+                       loading="lazy" 
+                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                       onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-slate-500 text-xs\\'>${m.original_filename}</div>'">
+                `}
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end">
+                  <p class="text-xs font-semibold text-white truncate">${m.original_filename}</p>
+                  <p class="text-[10px] text-slate-400">${m.device_name} • ${formatBytes(m.file_size)}</p>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+        lucide.createIcons();
+      } catch (err) {
+        console.error('Failed to fetch media', err);
+      }
+    }
+
+    function refreshData() {
+      fetchPairingInfo();
+      fetchDevices();
+      fetchRecentMedia();
+    }
+
+    // Initial load and periodic refresh
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      refreshData();
+      setInterval(refreshData, 10000);
+    });
+  </script>
+</body>
+</html>
