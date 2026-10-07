@@ -365,6 +365,54 @@ async def get_transfer_storage_info():
     """Return storage volume statistics for UI dashboard and clients."""
     return transfer_manager.get_storage_info()
 
+@app.post("/api/v1/transfer/upload-chunked")
+async def upload_chunked_transfer(
+    file: UploadFile = File(...),
+    transfer_id: str = Form(...),
+    filename: str = Form(...),
+    total_size: int = Form(...),
+    relative_path: Optional[str] = Form(None),
+    device: dict = Depends(verify_auth)
+):
+    """Gigabit streaming upload with atomic staging and rollback on cancellation."""
+    async def on_progress(status_dict):
+        if status_dict:
+            await ws_manager.broadcast_to_ui("TRANSFER_PROGRESS", status_dict)
+
+    try:
+        result = await transfer_manager.save_stream_upload(
+            transfer_id=transfer_id,
+            upload_file=file,
+            filename=filename,
+            total_size=total_size,
+            relative_path=relative_path,
+            progress_cb=on_progress
+        )
+        await ws_manager.broadcast_to_ui("TRANSFER_COMPLETED", result)
+        return result
+    except Exception as e:
+        await ws_manager.broadcast_to_ui("TRANSFER_FAILED", {"transfer_id": transfer_id, "error": str(e)})
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/v1/transfer/cancel/{transfer_id}")
+async def cancel_transfer(transfer_id: str, device: dict = Depends(verify_auth)):
+    """Cancel an ongoing transfer and immediately delete temporary partial data."""
+    success = transfer_manager.cancel_transfer(transfer_id)
+    await ws_manager.broadcast_to_ui("TRANSFER_CANCELLED", {"transfer_id": transfer_id})
+    return {
+        "success": success,
+        "transfer_id": transfer_id,
+        "message": "Transfer cancelled and staging data rolled back."
+    }
+
+@app.get("/api/v1/transfer/status/{transfer_id}")
+async def get_transfer_status(transfer_id: str, device: dict = Depends(verify_auth)):
+    """Retrieve current transfer progress, throughput, and state."""
+    status_dict = transfer_manager.get_status(transfer_id)
+    if not status_dict:
+        raise HTTPException(status_code=404, detail="Transfer not found")
+    return status_dict
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     html_file = static_dir / "index.html"
