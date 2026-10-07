@@ -2,6 +2,8 @@
 Handles pre-flight space checking, atomic streaming, chunked staging, cancellation rollback, and recursive folder transfers.
 """
 import os
+import io
+import zipfile
 import shutil
 import time
 import uuid
@@ -228,5 +230,68 @@ class TransferManager:
             if rec and rec["status"] != "CANCELLED":
                 rec["status"] = "FAILED"
             raise e
+
+    async def save_folder_upload(
+        self,
+        folder_name: str,
+        files: List[Any],
+        relative_paths: List[str]
+    ) -> Dict[str, Any]:
+        """Save a recursive directory tree while preserving nested subfolder structures."""
+        safe_folder = os.path.basename(folder_name).strip() or "TransferredFolder"
+        base_dir = get_transfers_dir() / safe_folder
+        base_dir.mkdir(parents=True, exist_ok=True)
+
+        saved_files = []
+        total_bytes = 0
+
+        for idx, file_obj in enumerate(files):
+            rel_path = relative_paths[idx] if idx < len(relative_paths) else (file_obj.filename or f"file_{idx}")
+            clean_rel = os.path.normpath(rel_path).replace("\\", "/").lstrip("/")
+            
+            # Security verification: defend against path traversal outside folder
+            if ".." in clean_rel.split("/"):
+                clean_rel = os.path.basename(clean_rel)
+            
+            dest_file = base_dir / clean_rel
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+
+            content = await file_obj.read()
+            with open(dest_file, "wb") as f:
+                f.write(content)
+            
+            size = len(content)
+            total_bytes += size
+            saved_files.append({
+                "path": clean_rel,
+                "size": size
+            })
+
+        return {
+            "success": True,
+            "folder_name": safe_folder,
+            "folder_path": str(base_dir),
+            "files_count": len(saved_files),
+            "total_bytes": total_bytes,
+            "files": saved_files
+        }
+
+    def create_folder_zip(self, folder_name: str) -> io.BytesIO:
+        """Package a transferred folder into a zip archive buffer on-the-fly."""
+        safe_folder = os.path.basename(folder_name).strip()
+        folder_path = get_transfers_dir() / safe_folder
+        if not folder_path.exists() or not folder_path.is_dir():
+            raise FileNotFoundError(f"Folder '{folder_name}' not found")
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root, _, files in os.walk(folder_path):
+                for file in files:
+                    full_p = Path(root) / file
+                    rel_p = full_p.relative_to(folder_path)
+                    zf.write(full_p, arcname=str(rel_p).replace("\\", "/"))
+        
+        buffer.seek(0)
+        return buffer
 
 transfer_manager = TransferManager()

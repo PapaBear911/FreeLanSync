@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, Form, status, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
@@ -412,6 +412,50 @@ async def get_transfer_status(transfer_id: str, device: dict = Depends(verify_au
     if not status_dict:
         raise HTTPException(status_code=404, detail="Transfer not found")
     return status_dict
+
+@app.post("/api/v1/transfer/folder")
+async def upload_folder_transfer(
+    files: List[UploadFile] = File(...),
+    folder_name: str = Form(...),
+    relative_paths: List[str] = Form(...),
+    device: dict = Depends(verify_auth)
+):
+    """Recursive folder upload with directory hierarchy preservation."""
+    cleaned_rel_paths = []
+    for r in relative_paths:
+        if r.startswith("[") and r.endswith("]"):
+            try:
+                cleaned_rel_paths.extend(json.loads(r))
+            except Exception:
+                cleaned_rel_paths.append(r)
+        else:
+            cleaned_rel_paths.append(r)
+
+    try:
+        result = await transfer_manager.save_folder_upload(
+            folder_name=folder_name,
+            files=files,
+            relative_paths=cleaned_rel_paths
+        )
+        await ws_manager.broadcast_to_ui("FOLDER_TRANSFER_COMPLETED", result)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/v1/transfer/download-folder/{folder_name}")
+async def download_folder_zip(folder_name: str, device: dict = Depends(verify_auth)):
+    """Package and stream an entire directory tree as a zip archive."""
+    try:
+        buf = transfer_manager.create_folder_zip(folder_name)
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{folder_name}.zip"'}
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Folder '{folder_name}' not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
