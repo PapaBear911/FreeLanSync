@@ -8,7 +8,16 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
 
-from .config import SERVICE_NAME, SERVER_HOST, SERVER_PORT, BACKUP_DIR, get_local_ip
+from .config import (
+    SERVICE_NAME,
+    SERVER_HOST,
+    SERVER_PORT,
+    get_backup_dir,
+    get_storage_dir,
+    load_settings,
+    save_settings,
+    get_local_ip
+)
 from .database import (
     init_db,
     get_device_by_token,
@@ -173,9 +182,33 @@ async def list_devices():
 async def list_recent_media():
     return {"recent_media": get_recent_media(limit=60)}
 
+class SettingsRequest(BaseModel):
+    storage_dir: str
+
+@app.get("/api/v1/settings")
+async def get_settings():
+    return {
+        "storage_dir": str(get_storage_dir().resolve()),
+        "backup_dir": str(get_backup_dir().resolve())
+    }
+
+@app.post("/api/v1/settings")
+async def update_settings(req: SettingsRequest):
+    new_path = Path(req.storage_dir.strip())
+    try:
+        new_path.mkdir(parents=True, exist_ok=True)
+        save_settings({"storage_dir": str(new_path.resolve())})
+        return {
+            "success": True,
+            "message": "Storage directory updated successfully",
+            "storage_dir": str(new_path.resolve())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Cannot create or access directory: {str(e)}")
+
 @app.get("/api/v1/photos/view/{relative_path:path}")
 async def view_photo(relative_path: str):
-    file_path = BACKUP_DIR / relative_path
+    file_path = get_backup_dir() / relative_path
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(file_path)

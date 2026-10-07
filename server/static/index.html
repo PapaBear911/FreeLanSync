@@ -37,7 +37,11 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-4">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="openSettingsModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors">
+          <i data-lucide="settings" class="w-4 h-4 text-indigo-400"></i>
+          <span>Storage Settings</span>
+        </button>
         <button onclick="refreshData()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors" title="Refresh">
           <i data-lucide="refresh-cw" class="w-4 h-4"></i>
         </button>
@@ -110,8 +114,24 @@
               <span class="text-xs uppercase font-semibold">Storage Used</span>
               <i data-lucide="hard-drive" class="w-4 h-4 text-violet-400"></i>
             </div>
-            <div class="text-3xl font-extrabold text-white" id="statStorage">0 MB</div>
+            <div class="text-3xl font-extrabold text-white" id="statStorage">0 B</div>
           </div>
+        </div>
+
+        <!-- Current Storage Location Banner -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+              <i data-lucide="folder" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Save Destination</div>
+              <div class="text-sm font-mono text-slate-200 truncate max-w-md" id="currentStorageDisplay">Loading...</div>
+            </div>
+          </div>
+          <button onclick="openSettingsModal()" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline">
+            Change Folder
+          </button>
         </div>
 
         <!-- Paired Devices Table -->
@@ -170,6 +190,41 @@
 
   </main>
 
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i data-lucide="settings" class="w-5 h-5 text-indigo-400"></i>
+          Storage Destination Settings
+        </h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Choose where on your PC hard drive photos and videos should be saved. Subfolders will be created automatically in <code>&lt;StorageFolder&gt;/Backups/&lt;DeviceName&gt;/YYYY/MM/</code>.
+      </p>
+
+      <div class="space-y-2">
+        <label class="text-xs font-semibold text-slate-300 uppercase">Save Folder Path on PC</label>
+        <input type="text" id="storagePathInput" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500" placeholder="C:\Users\YourName\Pictures\PhotoSync">
+      </div>
+
+      <div id="settingsFeedback" class="text-xs hidden p-2 rounded-lg"></div>
+
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
+          Cancel
+        </button>
+        <button onclick="saveStorageSettings()" id="saveSettingsBtn" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
     <p>PhotoSync Local Desktop Server • Private & Local Wi-Fi Backup</p>
@@ -198,6 +253,63 @@
         document.getElementById('pinTimer').innerText = `Expires in ${Math.floor(seconds / 60)}m ${seconds % 60}s`;
       } catch (err) {
         console.error('Failed to fetch pairing info', err);
+      }
+    }
+
+    async function fetchStorageSettings() {
+      try {
+        const res = await fetch('/api/v1/settings');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('currentStorageDisplay').innerText = data.backup_dir || data.storage_dir;
+        document.getElementById('storagePathInput').value = data.storage_dir;
+      } catch (err) {
+        console.error('Failed to fetch settings', err);
+      }
+    }
+
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+      document.getElementById('settingsFeedback').classList.add('hidden');
+      fetchStorageSettings();
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    async function saveStorageSettings() {
+      const path = document.getElementById('storagePathInput').value.trim();
+      const feedback = document.getElementById('settingsFeedback');
+      const btn = document.getElementById('saveSettingsBtn');
+      if (!path) return;
+
+      btn.disabled = true;
+      btn.innerText = 'Saving...';
+      try {
+        const res = await fetch('/api/v1/settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({storage_dir: path})
+        });
+        const data = await res.json();
+        feedback.classList.remove('hidden');
+        if (res.ok) {
+          feedback.className = 'text-xs p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          feedback.innerText = '✓ Storage path updated successfully!';
+          document.getElementById('currentStorageDisplay').innerText = data.storage_dir;
+          setTimeout(closeSettingsModal, 1200);
+        } else {
+          feedback.className = 'text-xs p-2.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          feedback.innerText = data.detail || 'Failed to update storage folder';
+        }
+      } catch (err) {
+        feedback.classList.remove('hidden');
+        feedback.className = 'text-xs p-2.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        feedback.innerText = 'Error connecting to server';
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Save Settings';
       }
     }
 
@@ -292,6 +404,7 @@
 
     function refreshData() {
       fetchPairingInfo();
+      fetchStorageSettings();
       fetchDevices();
       fetchRecentMedia();
     }

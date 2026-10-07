@@ -4,7 +4,7 @@ import hashlib
 import datetime
 from pathlib import Path
 from typing import Tuple, Optional
-from .config import BACKUP_DIR
+from .config import get_backup_dir
 from .database import record_media_backup
 
 def sanitize_filename(filename: str) -> str:
@@ -28,9 +28,19 @@ def parse_date_hierarchy(taken_at_iso: Optional[str]) -> Tuple[str, str]:
     return f"{now.year:04d}", f"{now.month:02d}"
 
 class StorageManager:
-    def __init__(self, backup_dir: Path = BACKUP_DIR):
-        self.backup_dir = backup_dir
-        self.backup_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, backup_dir: Optional[Path] = None):
+        self._custom_backup_dir = backup_dir
+
+    @property
+    def backup_dir(self) -> Path:
+        if self._custom_backup_dir is not None:
+            self._custom_backup_dir.mkdir(parents=True, exist_ok=True)
+            return self._custom_backup_dir
+        return get_backup_dir()
+
+    @backup_dir.setter
+    def backup_dir(self, val: Path):
+        self._custom_backup_dir = val
 
     def save_media(
         self,
@@ -59,7 +69,8 @@ class StorageManager:
         year_str, month_str = parse_date_hierarchy(taken_at_iso)
         clean_file = sanitize_filename(original_filename)
 
-        target_dir = self.backup_dir / clean_device / year_str / month_str
+        current_backup_dir = self.backup_dir
+        target_dir = current_backup_dir / clean_device / year_str / month_str
         target_dir.mkdir(parents=True, exist_ok=True)
 
         target_path = target_dir / clean_file
@@ -70,7 +81,7 @@ class StorageManager:
                 existing_hash = hashlib.sha256(existing_file.read()).hexdigest().lower()
             if existing_hash == actual_sha256:
                 # Already exists and content is identical
-                rel_path = str(target_path.relative_to(self.backup_dir))
+                rel_path = str(target_path.relative_to(current_backup_dir))
                 record_media_backup(
                     device_id=device_id,
                     sha256=actual_sha256,
@@ -99,7 +110,7 @@ class StorageManager:
             raise e
 
         # 4. Record in database
-        rel_path = str(target_path.relative_to(self.backup_dir))
+        rel_path = str(target_path.relative_to(current_backup_dir))
         record_media_backup(
             device_id=device_id,
             sha256=actual_sha256,
