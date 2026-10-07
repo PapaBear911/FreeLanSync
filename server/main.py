@@ -30,6 +30,7 @@ from .auth import pairing_manager
 from .discovery import mdns_advertiser
 from .storage import storage_manager
 from .websocket_manager import ws_manager
+from .transfer_manager import transfer_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -79,6 +80,9 @@ class BatchCheckRequest(BaseModel):
 class BatchCheckResponse(BaseModel):
     existing_hashes: List[str]
     missing_hashes: List[str]
+
+class SpaceCheckRequest(BaseModel):
+    required_bytes: int
 
 # Authentication dependency
 async def verify_auth(authorization: Optional[str] = Header(None)) -> dict:
@@ -348,6 +352,18 @@ async def get_clipboard():
 async def get_continuity_status():
     """Get snapshot of current device continuity status."""
     return ws_manager.latest_state
+
+# --- LANSync Gigabit Transfer Endpoints ---
+
+@app.post("/api/v1/transfer/check-space")
+async def check_transfer_space(payload: SpaceCheckRequest, device: dict = Depends(verify_auth)):
+    """Pre-flight check to verify target storage has sufficient capacity."""
+    return transfer_manager.check_space(payload.required_bytes)
+
+@app.get("/api/v1/transfer/storage-info")
+async def get_transfer_storage_info():
+    """Return storage volume statistics for UI dashboard and clients."""
+    return transfer_manager.get_storage_info()
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
