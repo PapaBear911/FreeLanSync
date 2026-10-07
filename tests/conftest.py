@@ -24,3 +24,4 @@ def isolate_test_environment(tmp_path, monkeypatch):
     monkeypatch.setattr("server.config.TRANSFERS_DIR", test_transfers)
     monkeypatch.setattr("server.config.QUICKDROP_DIR", test_quickdrop)
     monkeypatch.setattr("server.config.DATABASE_PATH", test_db)
+    monkeypatch.setattr("server.database.get_database_path", lambda: test_db)

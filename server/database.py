@@ -3,12 +3,13 @@ import sqlite3
 import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from .config import DATABASE_PATH
+from .config import DATABASE_PATH, get_database_path
 
-def init_db(db_path: Path = DATABASE_PATH):
+def init_db(db_path: Optional[Path] = None):
     """Initialize database schema with WAL mode for high concurrency."""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    target_path = db_path if db_path is not None else get_database_path()
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(target_path) as conn:
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA foreign_keys = ON;")
         
@@ -47,7 +48,7 @@ def init_db(db_path: Path = DATABASE_PATH):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_media_device ON media_files(device_id);")
 
 def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
-    target_path = db_path if db_path is not None else DATABASE_PATH
+    target_path = db_path if db_path is not None else get_database_path()
     init_db(target_path)
     conn = sqlite3.connect(target_path)
     conn.row_factory = sqlite3.Row
