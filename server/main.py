@@ -5,7 +5,6 @@ from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from pathlib import Path
 import json
 import os
@@ -37,6 +36,17 @@ from .database import (
     get_recent_media
 )
 from .auth import pairing_manager
+from .schemas import (
+    BatchCheckRequest,
+    BatchCheckResponse,
+    ClipboardPayload,
+    OpenFolderRequest,
+    PairRequest,
+    PairResponse,
+    SettingsRequest,
+    SpaceCheckRequest,
+    ValidatePathRequest,
+)
 from .discovery import mdns_advertiser
 from .storage import storage_manager
 from .websocket_manager import ws_manager
@@ -127,26 +137,7 @@ static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Models
-class PairRequest(BaseModel):
-    pin: str
-    device_name: str
-    device_id: str
-
-class PairResponse(BaseModel):
-    success: bool
-    auth_token: Optional[str] = None
-    message: str
-
-class BatchCheckRequest(BaseModel):
-    hashes: List[str]
-
-class BatchCheckResponse(BaseModel):
-    existing_hashes: List[str]
-    missing_hashes: List[str]
-
-class SpaceCheckRequest(BaseModel):
-    required_bytes: int
+# Models live in .schemas (TD-009); main.py wires routes and delegates.
 
 # Authentication dependencies
 async def verify_auth(authorization: Optional[str] = Header(None)) -> dict:
@@ -261,6 +252,8 @@ async def upload_photo(
     }
 
 # --- Dashboard & Monitoring Endpoints ---
+# PUBLIC (LAN dashboard by design): read-only inventory for the local dashboard.
+# Write/mutation routes below validate inputs and contain paths (TD-005/TD-010).
 
 @app.get("/api/v1/devices")
 async def list_devices():
@@ -269,15 +262,6 @@ async def list_devices():
 @app.get("/api/v1/photos/recent")
 async def list_recent_media():
     return {"recent_media": get_recent_media(limit=60)}
-
-class SettingsRequest(BaseModel):
-    storage_dir: str
-
-class ValidatePathRequest(BaseModel):
-    path: str
-
-class OpenFolderRequest(BaseModel):
-    path: Optional[str] = None
 
 @app.get("/api/v1/settings")
 async def get_settings():
@@ -445,6 +429,8 @@ async def device_bridge_ws(
             await ws_manager.disconnect_device(device_id, websocket)
 
 # --- Quick-Drop (Bidirectional File Transfer) Endpoints ---
+# PUBLIC (LAN feature by design): file_id values are server-generated hex12 and
+# validated before use (TD-016); see storage.get_drop_file_path.
 
 @app.post("/api/v1/drop/upload")
 async def upload_quick_drop(file: UploadFile = File(...)):
@@ -476,6 +462,10 @@ async def list_pending_quick_drops():
 @app.get("/api/v1/drop/download/{file_id}")
 async def download_quick_drop(file_id: str):
     """Download a pending Quick-Drop file to the Android device."""
+    # TD-016: file_id is interpolated into a glob; reject anything that is not
+    # a server-issued hex12 id before touching the filesystem.
+    if not storage_manager.is_valid_file_id(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file_id")
     file_path = storage_manager.get_drop_file_path(file_id)
     if not file_path or not file_path.exists():
         raise HTTPException(status_code=404, detail="Quick-Drop file not found or already downloaded")
@@ -486,6 +476,8 @@ async def download_quick_drop(file_id: str):
 @app.delete("/api/v1/drop/{file_id}")
 async def delete_quick_drop(file_id: str):
     """Delete a quick drop file after download or cancel."""
+    if not storage_manager.is_valid_file_id(file_id):
+        raise HTTPException(status_code=400, detail="Invalid file_id")
     success = storage_manager.delete_drop_file(file_id)
     if not success:
         raise HTTPException(status_code=404, detail="File not found")
@@ -493,10 +485,7 @@ async def delete_quick_drop(file_id: str):
     return {"success": True, "message": "Quick-Drop file removed"}
 
 # --- Clipboard Sharing Endpoints ---
-
-class ClipboardPayload(BaseModel):
-    text: str
-    source: Optional[str] = "desktop"
+# PUBLIC (LAN continuity by design): clipboard/status mirror between paired LAN peers.
 
 @app.post("/api/v1/clipboard")
 async def update_clipboard(payload: ClipboardPayload):
@@ -522,6 +511,9 @@ async def get_continuity_status():
     return ws_manager.latest_state
 
 # --- LANSync Gigabit Transfer Endpoints ---
+# PUBLIC (LAN dashboard by design) except where noted: check-space/storage-info/
+# upload-chunked accept an optional token when present (see optional_verify_auth);
+# folder/zip/list/file reads are contained (TD-011) and skip staging names.
 
 @app.post("/api/v1/transfer/check-space")
 async def check_transfer_space(payload: SpaceCheckRequest, device: Optional[dict] = Depends(optional_verify_auth)):
@@ -654,6 +646,7 @@ async def list_transfers():
 @app.get("/api/v1/transfer/download-file/{file_name}")
 async def download_transfer_file(file_name: str):
     """Download an individual file from the Transfers folder."""
+    # Contained: basename strips any directory components (TD-011).
     safe_name = os.path.basename(file_name)
     p = get_transfers_dir() / safe_name
     if not p.exists() or not p.is_file():

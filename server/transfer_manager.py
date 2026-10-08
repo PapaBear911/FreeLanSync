@@ -8,11 +8,31 @@ import shutil
 import time
 import uuid
 import logging
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Dict, Any, Optional, List, Callable
 from .config import get_storage_dir, get_transfers_dir, format_bytes
 
 logger = logging.getLogger("freelansync.transfer")
+
+
+def resolve_within(base: Path, *parts: str) -> Path:
+    """Join user-supplied path parts onto base, rejecting escapes (TD-011).
+
+    Rejects absolute paths and Windows drive letters (where `base / part`
+    collapses onto the attacker path), then resolves and asserts containment.
+    Raises ValueError on any escape attempt.
+    """
+    base_resolved = base.resolve()
+    for part in parts:
+        if not part:
+            continue
+        p = PurePath(part)
+        if p.is_absolute() or p.drive:
+            raise ValueError(f"Absolute path rejected: {part!r}")
+    candidate = (base_resolved.joinpath(*parts)).resolve()
+    if candidate != base_resolved and base_resolved not in candidate.parents:
+        raise ValueError(f"Path escapes base directory: {parts!r}")
+    return candidate
 
 class TransferManager:
     # 250 MB safety margin buffer for disk space
@@ -164,12 +184,15 @@ class TransferManager:
         safe_name = os.path.basename(filename)
         transfers_dir = get_transfers_dir()
 
-        # Handle nested relative paths safely
-        if relative_path:
-            clean_rel = os.path.normpath(relative_path).lstrip(r"\/.")
-            target_path = transfers_dir / clean_rel
-        else:
-            target_path = transfers_dir / safe_name
+        # TD-011: nested relative paths are contained — absolute paths, drive
+        # letters, and `..` escapes are rejected before any write.
+        try:
+            if relative_path:
+                target_path = resolve_within(transfers_dir, relative_path)
+            else:
+                target_path = resolve_within(transfers_dir, safe_name)
+        except ValueError as e:
+            raise ValueError(str(e))
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = target_path.parent / f".tmp_{transfer_id}_{safe_name}"
@@ -195,6 +218,20 @@ class TransferManager:
                         await progress_cb(self.get_status(transfer_id))
 
             # Atomic rename from staging .tmp to target path
+            # TD-020: a short upload (fewer bytes than declared total_size) is a
+            # failure, not a completion — roll back instead of advertising it.
+            if written != total_size:
+                if tmp_path.exists():
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                rec = self.active_transfers.get(transfer_id)
+                if rec and rec["status"] != "CANCELLED":
+                    rec["status"] = "FAILED"
+                raise ValueError(
+                    f"Incomplete upload: received {written} of {total_size} bytes"
+                )
             os.replace(tmp_path, target_path)
             self.complete_transfer(transfer_id, target_path)
 
@@ -227,7 +264,7 @@ class TransferManager:
     ) -> Dict[str, Any]:
         """Save a recursive directory tree while preserving nested subfolder structures."""
         safe_folder = os.path.basename(folder_name).strip() or "TransferredFolder"
-        base_dir = get_transfers_dir() / safe_folder
+        base_dir = resolve_within(get_transfers_dir(), safe_folder)
         base_dir.mkdir(parents=True, exist_ok=True)
 
         saved_files = []
@@ -235,23 +272,32 @@ class TransferManager:
 
         for idx, file_obj in enumerate(files):
             rel_path = relative_paths[idx] if idx < len(relative_paths) else (file_obj.filename or f"file_{idx}")
-            clean_rel = os.path.normpath(rel_path).replace("\\", "/").lstrip("/")
-            
-            # Security verification: defend against path traversal outside folder
-            if ".." in clean_rel.split("/"):
-                clean_rel = os.path.basename(clean_rel)
-            
-            dest_file = base_dir / clean_rel
+            # TD-011: contain each member; TD-007: stage to tmp then replace so
+            # a crash never leaves a partial file at its advertised path.
+            try:
+                dest_file = resolve_within(base_dir, rel_path)
+            except ValueError:
+                dest_file = resolve_within(base_dir, os.path.basename(rel_path))
             dest_file.parent.mkdir(parents=True, exist_ok=True)
 
             content = await file_obj.read()
-            with open(dest_file, "wb") as f:
-                f.write(content)
+            tmp_file = dest_file.parent / f".tmp_{uuid.uuid4().hex[:8]}_{dest_file.name}"
+            try:
+                with open(tmp_file, "wb") as f:
+                    f.write(content)
+                os.replace(tmp_file, dest_file)
+            except Exception:
+                if tmp_file.exists():
+                    try:
+                        tmp_file.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                raise
             
             size = len(content)
             total_bytes += size
             saved_files.append({
-                "path": clean_rel,
+                "path": str(dest_file.relative_to(base_dir)).replace("\\", "/"),
                 "size": size
             })
 
@@ -267,7 +313,10 @@ class TransferManager:
     def create_folder_zip(self, folder_name: str) -> io.BytesIO:
         """Package a transferred folder into a zip archive buffer on-the-fly."""
         safe_folder = os.path.basename(folder_name).strip()
-        folder_path = get_transfers_dir() / safe_folder
+        try:
+            folder_path = resolve_within(get_transfers_dir(), safe_folder)
+        except ValueError:
+            raise FileNotFoundError(f"Folder '{folder_name}' not found")
         if not folder_path.exists() or not folder_path.is_dir():
             raise FileNotFoundError(f"Folder '{folder_name}' not found")
 

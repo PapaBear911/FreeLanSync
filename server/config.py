@@ -87,8 +87,20 @@ def save_settings(settings: dict):
     data_dir = get_app_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
     target_file = data_dir / "freelansync_config.json"
-    with open(target_file, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)
+    # TD-018: stage to tmp then atomically replace; a torn direct write would
+    # be silently discarded by load_settings on the next start.
+    tmp_file = target_file.with_name(f".tmp_{os.getpid()}_freelansync_config.json")
+    try:
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2)
+        os.replace(tmp_file, target_file)
+    except Exception:
+        if tmp_file.exists():
+            try:
+                tmp_file.unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
 
 def format_bytes(size: int) -> str:
     """Format bytes into human-readable string."""

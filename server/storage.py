@@ -2,11 +2,16 @@
 import os
 import hashlib
 import datetime
+import re
 import uuid
 from pathlib import Path
 from typing import Tuple, Optional
 from .config import get_backup_dir, get_quickdrop_dir
 from .database import record_media_backup
+
+# TD-016: server-issued Quick-Drop ids are uuid4hex[:12]; anything else reaching
+# the glob is a probe and must be rejected before filesystem access.
+FILE_ID_RE = re.compile(r"^[0-9a-f]{12}$")
 
 def sanitize_filename(filename: str) -> str:
     """Sanitize filename to prevent directory traversal or invalid characters."""
@@ -187,13 +192,23 @@ class StorageManager:
         return results
 
     def get_drop_file_path(self, file_id: str) -> Optional[Path]:
+        # TD-016: never interpolate an unvalidated id into a glob ("*" would
+        # match every pending drop). Callers in main.py also pre-validate.
+        if not self.is_valid_file_id(file_id):
+            return None
         drop_dir = get_quickdrop_dir()
         for p in drop_dir.glob(f"{file_id}_*"):
             if p.is_file():
                 return p
         return None
 
+    @staticmethod
+    def is_valid_file_id(file_id: str) -> bool:
+        return bool(FILE_ID_RE.match(file_id or ""))
+
     def delete_drop_file(self, file_id: str) -> bool:
+        if not self.is_valid_file_id(file_id):
+            return False
         path = self.get_drop_file_path(file_id)
         if path and path.exists():
             path.unlink()
