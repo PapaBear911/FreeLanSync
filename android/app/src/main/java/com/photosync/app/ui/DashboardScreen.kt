@@ -71,6 +71,7 @@ fun DashboardScreen(
 
     var pendingDrops by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var isCheckingDrops by remember { mutableStateOf(false) }
+    var showGuide by remember { mutableStateOf(false) }
 
     // Live heartbeat beacon animation
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -113,6 +114,13 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showGuide = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "User Guide",
+                            tint = Color(0xFF38BDF8)
+                        )
+                    }
                     TextButton(onClick = onUnpairClicked) {
                         Text("Disconnect", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
@@ -603,6 +611,10 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+
+    if (showGuide) {
+        UserGuideDialog(onDismiss = { showGuide = false })
     }
 }
 

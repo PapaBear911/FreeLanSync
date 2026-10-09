@@ -88,6 +88,7 @@ PUBLIC_ALLOWLIST = {
     "/FreeLanSync.apk",
     "/download-apk",
     "/api/v1/download-apk",
+    "/api/v1/guide",
     "/",
     # Dashboard inventory (read-only; auth_token never exposed, TD-013).
     "/api/v1/devices",

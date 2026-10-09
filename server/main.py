@@ -288,6 +288,69 @@ async def upload_photo(
 # PUBLIC (LAN dashboard by design): read-only inventory for the local dashboard.
 # Write/mutation routes below validate inputs and contain paths (TD-005/TD-010).
 
+@app.get("/api/v1/guide")
+async def get_user_guide():
+    """Returns structured FreeLanSync user guide and setup instructions."""
+    return {
+        "title": "FreeLanSync User Guide",
+        "sections": [
+            {
+                "id": "pairing",
+                "title": "Fast Optical Pairing",
+                "summary": "Connect PC and phone to the same Wi-Fi network and scan the Desktop QR code.",
+                "steps": [
+                    "Ensure both PC and phone are connected to the same local Wi-Fi network or hotspot.",
+                    "Open FreeLanSync on your Android phone and tap 'Scan Desktop QR Code'.",
+                    "Scan the QR code displayed on the PC dashboard to automatically pair.",
+                    "Manual fallback: Tap 'Manual Server Entry' and enter the 6-digit PIN displayed on PC."
+                ]
+            },
+            {
+                "id": "backup",
+                "title": "Gigabit Camera Roll Backup",
+                "summary": "Zero-copy, SHA-256 deduplicated media backup over gigabit LAN.",
+                "steps": [
+                    "Tap 'Sync Camera Roll Now' on the Android Dashboard to start an instant backup.",
+                    "Enable 'Auto-Sync on Home Wi-Fi' or 'Charging Only' to run backups hands-free in the background.",
+                    "Existing photos are skipped instantly using bit-for-bit SHA-256 hash checks.",
+                    "Uploads stream directly across up to 4 parallel connections without temporary disk files."
+                ]
+            },
+            {
+                "id": "quickdrop",
+                "title": "Zero-Cloud Quick-Drop",
+                "summary": "Drag and drop any file on the PC dashboard to stream directly into phone Downloads.",
+                "steps": [
+                    "On PC dashboard, navigate to 'Quick-Drop & Clipboard' and drop files into the dropzone.",
+                    "A notification will appear on your phone.",
+                    "Tap 'Receive' on the Android dashboard to save directly into your Downloads folder.",
+                    "Downloads are staged atomically via temporary files to prevent truncated/corrupted downloads."
+                ]
+            },
+            {
+                "id": "continuity",
+                "title": "Shared Clipboard & Notifications",
+                "summary": "Real-time bidirectional clipboard sync and desktop notification mirroring.",
+                "steps": [
+                    "Copy text on PC to instantly sync it to your Android device clipboard.",
+                    "Copy text on Android to sync it back to your PC dashboard.",
+                    "Grant Notification Listener permission on Android to mirror phone notifications to PC in real time."
+                ]
+            },
+            {
+                "id": "troubleshooting",
+                "title": "Network Troubleshooting",
+                "summary": "Resolving discovery, firewall, and connection issues.",
+                "steps": [
+                    "Ensure Wi-Fi Router does not have 'AP Isolation' or 'Client Isolation' enabled.",
+                    "Windows Firewall: Allow Python/Node for Private Networks on TCP 8080 and UDP 8079.",
+                    "Token Expired (401): Tap 'Disconnect' / 'Unpair' on phone and re-scan the QR code.",
+                    "Oversized Video (413): Increase FREELANSYNC_MAX_UPLOAD_MB (default 4096 MB) if needed."
+                ]
+            }
+        ]
+    }
+
 @app.get("/api/v1/devices")
 async def list_devices():
     return {"devices": get_all_devices()}

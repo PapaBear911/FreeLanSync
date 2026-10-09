@@ -57,6 +57,7 @@ fun PairingScreen(
     var pinInput by remember { mutableStateOf("") }
     var linkInput by remember { mutableStateOf("") }
     var showManualSetup by remember { mutableStateOf(false) }
+    var showGuide by remember { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
 
@@ -124,6 +125,15 @@ fun PairingScreen(
                                 color = Color(0xFF94A3B8)
                             )
                         }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showGuide = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "User Guide",
+                            tint = Color(0xFF38BDF8)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -523,4 +533,9 @@ fun PairingScreen(
             }
         }
     }
+
+    if (showGuide) {
+        UserGuideDialog(onDismiss = { showGuide = false })
+    }
 }
+

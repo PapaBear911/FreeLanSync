@@ -62,6 +62,9 @@ releases/_backup-*/
 .kilo/
 android/tools/__pycache__/
 android/tools/icon_preview.png
+android/tools/candidates/
+android/tools/test_*.py
+android/tools/render_*.py
 
 # IDE / OS
 .idea/

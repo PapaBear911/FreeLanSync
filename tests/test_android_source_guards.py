@@ -138,4 +138,17 @@ def test_worker_uses_parallel_coroutine_semaphore_pool():
     assert "AtomicInteger" in src
 
 
+def test_user_guide_dialog_integrated():
+    """Android app provides accessible in-app guide on Pairing and Dashboard screens."""
+    guide_file = ANDROID_SRC / "ui" / "UserGuideDialog.kt"
+    assert guide_file.exists()
+    pairing_src = (ANDROID_SRC / "ui" / "PairingScreen.kt").read_text(encoding="utf-8")
+    assert "UserGuideDialog" in pairing_src
+    assert "showGuide" in pairing_src
+    dash_src = DASHBOARD_SCREEN.read_text(encoding="utf-8")
+    assert "UserGuideDialog" in dash_src
+    assert "showGuide" in dash_src
+
+
+
 

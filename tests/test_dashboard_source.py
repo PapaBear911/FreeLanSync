@@ -67,3 +67,13 @@ def test_gallery_signature_and_pagination_untouched():
     assert "GALLERY_PAGE_SIZE" in src
     assert "function loadMoreGallery" in src
     assert "initGalleryInfiniteScroll" in src
+
+
+def test_guide_modal_and_nav_button_exist():
+    """Dashboard must provide an accessible in-app user guide modal."""
+    src = INDEX.read_text(encoding="utf-8")
+    assert 'id="guideModal"' in src
+    assert "openGuideModal()" in src
+    assert "closeGuideModal()" in src
+    assert 'onclick="openGuideModal()"' in src
+

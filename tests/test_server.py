@@ -188,3 +188,15 @@ def test_system_dir_protection(monkeypatch, tmp_path):
     safe_storage = get_storage_dir()
     assert "program files" not in str(safe_storage).lower()
 
+def test_get_user_guide_endpoint():
+    res = client.get("/api/v1/guide")
+    assert res.status_code == 200
+    data = res.json()
+    assert "FreeLanSync" in data["title"]
+    assert len(data["sections"]) >= 4
+    section_ids = [s["id"] for s in data["sections"]]
+    assert "pairing" in section_ids
+    assert "backup" in section_ids
+    assert "quickdrop" in section_ids
+
+
