@@ -103,8 +103,8 @@ class StorageManager:
                 suffix = target_path.suffix
                 target_path = target_dir / f"{stem}_{actual_sha256[:8]}{suffix}"
 
-        # 3. Atomic write: write to temp file then rename
-        temp_path = target_path.with_suffix(f"{target_path.suffix}.tmp_{os.getpid()}")
+        # 3. Atomic write: write to temp file then rename (UUID suffix prevents parallel upload collisions)
+        temp_path = target_path.with_suffix(f"{target_path.suffix}.tmp_{os.getpid()}_{uuid.uuid4().hex[:8]}")
         try:
             with open(temp_path, "wb") as f:
                 f.write(file_bytes)

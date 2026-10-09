@@ -27,7 +27,7 @@ class SyncManager(private val context: Context) {
             constraintsBuilder.setRequiresCharging(true)
         }
 
-        val periodicRequest = PeriodicWorkRequestBuilder<PhotoSyncWorker>(1, TimeUnit.HOURS)
+        val periodicRequest = PeriodicWorkRequestBuilder<FreeLanSyncWorker>(1, TimeUnit.HOURS)
             .setConstraints(constraintsBuilder.build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
             .build()
@@ -44,7 +44,7 @@ class SyncManager(private val context: Context) {
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        val oneTimeRequest = OneTimeWorkRequestBuilder<PhotoSyncWorker>()
+        val oneTimeRequest = OneTimeWorkRequestBuilder<FreeLanSyncWorker>()
             .setConstraints(constraints)
             .build()
 

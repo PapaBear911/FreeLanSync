@@ -1,23 +1,48 @@
 package com.photosync.app.network
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSink
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** HTTP status surfaced so callers can separate permanent 4xx from transient errors. */
 class HttpStatusException(val code: Int, message: String) : Exception(message)
 
-class PhotoSyncApiClient {
+class ContentUriRequestBody(
+    private val contentResolver: ContentResolver,
+    private val uri: Uri,
+    private val mimeType: String,
+    private val size: Long = -1L
+) : RequestBody() {
+    override fun contentType(): MediaType? = mimeType.toMediaType()
+
+    override fun contentLength(): Long = if (size >= 0) size else -1L
+
+    override fun writeTo(sink: BufferedSink) {
+        val inputStream = contentResolver.openInputStream(uri)
+            ?: throw IOException("Cannot open input stream for $uri")
+        inputStream.use { input ->
+            val buffer = ByteArray(8192)
+            var bytesRead: Int
+            while (input.read(buffer).also { bytesRead = it } != -1) {
+                sink.write(buffer, 0, bytesRead)
+            }
+        }
+    }
+}
+
+class FreeLanSyncApiClient {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
@@ -106,19 +131,16 @@ class PhotoSyncApiClient {
         filename: String,
         sha256: String,
         mimeType: String,
-        takenAtIso: String?
+        takenAtIso: String?,
+        size: Long = -1L
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        var tempFile: File? = null
         try {
-            // Read content into temp file for OkHttp streaming upload
-            tempFile = File.createTempFile("upload_", ".tmp", context.cacheDir)
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output)
-                }
-            } ?: return@withContext Result.failure(Exception("Cannot open media stream"))
-
-            val fileBody = tempFile.asRequestBody(mimeType.toMediaType())
+            val fileBody = ContentUriRequestBody(
+                contentResolver = context.contentResolver,
+                uri = uri,
+                mimeType = mimeType,
+                size = size
+            )
             val multipartBuilder = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("sha256", sha256)
@@ -145,19 +167,23 @@ class PhotoSyncApiClient {
             }
         } catch (e: Exception) {
             Result.failure(e)
-        } finally {
-            tempFile?.delete()
         }
     }
 
-    suspend fun getPendingDrops(host: String, port: Int): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
+    suspend fun getPendingDrops(
+        host: String,
+        port: Int,
+        token: String? = null
+    ): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder()
+            val reqBuilder = Request.Builder()
                 .url("http://$host:$port/api/v1/drop/pending")
                 .get()
-                .build()
+            if (!token.isNullOrBlank()) {
+                reqBuilder.header("Authorization", "Bearer $token")
+            }
 
-            client.newCall(request).execute().use { response ->
+            client.newCall(reqBuilder.build()).execute().use { response ->
                 if (response.isSuccessful) {
                     val body = response.body?.string() ?: ""
                     val json = JSONObject(body)
@@ -168,7 +194,7 @@ class PhotoSyncApiClient {
                     }
                     Result.success(list)
                 } else {
-                    Result.failure(Exception("Failed to fetch pending drops HTTP ${response.code}"))
+                    Result.failure(HttpStatusException(response.code, "Failed to fetch pending drops HTTP ${response.code}"))
                 }
             }
         } catch (e: Exception) {
@@ -180,27 +206,42 @@ class PhotoSyncApiClient {
         host: String,
         port: Int,
         fileId: String,
-        destinationFile: File
+        destinationFile: File,
+        token: String? = null
     ): Result<File> = withContext(Dispatchers.IO) {
+        val parentDir = destinationFile.parentFile ?: destinationFile
+        val tempFile = File(parentDir, ".tmp_${fileId}_${System.currentTimeMillis()}")
         try {
-            val request = Request.Builder()
+            val reqBuilder = Request.Builder()
                 .url("http://$host:$port/api/v1/drop/download/$fileId")
                 .get()
-                .build()
+            if (!token.isNullOrBlank()) {
+                reqBuilder.header("Authorization", "Bearer $token")
+            }
 
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    response.body?.byteStream()?.use { input ->
-                        FileOutputStream(destinationFile).use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                    Result.success(destinationFile)
-                } else {
-                    Result.failure(Exception("Download failed with HTTP ${response.code}"))
+            client.newCall(reqBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(
+                        HttpStatusException(response.code, "Download failed with HTTP ${response.code}")
+                    )
                 }
+                val body = response.body ?: throw IOException("Empty response body")
+                body.byteStream().use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                if (destinationFile.exists()) {
+                    destinationFile.delete()
+                }
+                if (!tempFile.renameTo(destinationFile)) {
+                    tempFile.copyTo(destinationFile, overwrite = true)
+                    tempFile.delete()
+                }
+                Result.success(destinationFile)
             }
         } catch (e: Exception) {
+            tempFile.delete()
             Result.failure(e)
         }
     }

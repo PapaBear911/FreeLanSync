@@ -10,10 +10,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ANDROID_SRC = ROOT / "android" / "app" / "src" / "main" / "java" / "com" / "photosync" / "app"
-WORKER = ANDROID_SRC / "sync" / "PhotoSyncWorker.kt"
-API_CLIENT = ANDROID_SRC / "network" / "PhotoSyncApiClient.kt"
+WORKER = ANDROID_SRC / "sync" / "FreeLanSyncWorker.kt"
+API_CLIENT = ANDROID_SRC / "network" / "FreeLanSyncApiClient.kt"
 WS = ANDROID_SRC / "network" / "DeviceBridgeWebSocket.kt"
 MAIN_ACTIVITY = ANDROID_SRC / "MainActivity.kt"
+DASHBOARD_SCREEN = ANDROID_SRC / "ui" / "DashboardScreen.kt"
 
 
 def test_worker_success_is_guarded_by_zero_failures():
@@ -74,3 +75,67 @@ def test_android_logs_never_interpolate_token():
             if re.match(r"(Log\.\w+|println)\(", stripped) and "$token" in line:
                 offenders.append(f"{kt.relative_to(ROOT)}:{i}: {stripped}")
     assert not offenders, "TD-028: token interpolated into log statement(s):\n" + "\n".join(offenders)
+
+
+def test_upload_photo_uses_zero_copy_streaming_without_temp_file():
+    """Streaming upload must not create temporary disk files in cacheDir."""
+    src = API_CLIENT.read_text(encoding="utf-8")
+    assert "createTempFile" not in src, "PhotoSyncApiClient must not create temp files for upload"
+    assert "class ContentUriRequestBody" in src
+    assert "override fun writeTo(sink: BufferedSink)" in src
+    assert "contentResolver.openInputStream(uri)" in src
+    assert "ByteArray(8192)" in src
+
+
+def test_worker_status_code_matrix_routing():
+    """Worker handles 400 (rehash retry), 413 (skip), 401/403 (abort & alert), 5xx (retry)."""
+    src = WORKER.read_text(encoding="utf-8")
+    assert "statusCode == 400" in src
+    assert "scanner.calculateSha256(item.uri)" in src
+    assert "413 ->" in src
+    assert "401, 403 ->" in src
+    assert "postAuthErrorNotification" in src
+    assert "DeviceBridgeWebSocket.getInstance().sendNotification" in src
+    assert "in 400..499 ->" in src
+
+
+def test_drop_filename_traversal_guarded():
+    """TD-030: drop filename must be sanitized with basename and traversal checks."""
+    src = DASHBOARD_SCREEN.read_text(encoding="utf-8")
+    assert "File(filename).name" in src
+    assert "canonicalPath.startsWith" in src
+    assert '.."' in src or "'..' in" in src or '".." in' in src or '!it.contains("..")' in src
+
+
+def test_drop_endpoints_send_authorization_header():
+    """TD-031: drop GET endpoints accept token and send Authorization Bearer."""
+    src = API_CLIENT.read_text(encoding="utf-8")
+    get_drops = src[src.index("fun getPendingDrops"):src.index("fun downloadDropFile")]
+    dl_drop = src[src.index("fun downloadDropFile"):]
+    assert "token: String?" in get_drops
+    assert 'header("Authorization", "Bearer $token")' in get_drops
+    assert "token: String?" in dl_drop
+    assert 'header("Authorization", "Bearer $token")' in dl_drop
+
+
+def test_drop_download_is_atomic_and_checks_body():
+    """TD-034: downloadDropFile stages via tmp file, checks body, and deletes on failure."""
+    src = API_CLIENT.read_text(encoding="utf-8")
+    dl_drop = src[src.index("fun downloadDropFile"):]
+    assert ".tmp_" in dl_drop
+    assert "tempFile.delete()" in dl_drop
+    assert "tempFile.renameTo" in dl_drop
+    assert "Empty response body" in dl_drop or "throw IOException" in dl_drop
+
+
+def test_worker_uses_parallel_coroutine_semaphore_pool():
+    """Worker uploads via bounded coroutine pool (Semaphore) for gigabit concurrency."""
+    src = WORKER.read_text(encoding="utf-8")
+    assert "Semaphore(permits = 4)" in src or "Semaphore(4)" in src
+    assert "supervisorScope" in src
+    assert "awaitAll()" in src
+    assert "withPermit" in src
+    assert "AtomicInteger" in src
+
+
+

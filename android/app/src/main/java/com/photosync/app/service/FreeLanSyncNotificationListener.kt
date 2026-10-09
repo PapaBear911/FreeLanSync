@@ -8,17 +8,17 @@ import android.util.Log
 import com.photosync.app.data.PreferencesManager
 import com.photosync.app.network.DeviceBridgeWebSocket
 
-class PhotoSyncNotificationListener : NotificationListenerService() {
+class FreeLanSyncNotificationListener : NotificationListenerService() {
 
     companion object {
-        private const val TAG = "PhotoSyncNotifListener"
+        private const val TAG = "FreeLanSyncNotifListener"
         var isListenerActive: Boolean = false
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         isListenerActive = true
-        Log.i(TAG, "PhotoSync Notification Listener connected")
+        Log.i(TAG, "FreeLanSync Notification Listener connected")
 
         // Ensure WebSocket is connected using saved preferences
         val prefs = PreferencesManager(applicationContext)
@@ -31,7 +31,7 @@ class PhotoSyncNotificationListener : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         isListenerActive = false
-        Log.w(TAG, "PhotoSync Notification Listener disconnected")
+        Log.w(TAG, "FreeLanSync Notification Listener disconnected")
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {

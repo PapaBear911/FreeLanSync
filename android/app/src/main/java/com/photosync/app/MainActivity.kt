@@ -25,8 +25,8 @@ import com.photosync.app.data.ServerConfig
 import com.photosync.app.network.LanDiscoveryManager
 import com.photosync.app.network.PairingPayload
 import com.photosync.app.network.PairingPayloadParser
-import com.photosync.app.network.PhotoSyncApiClient
-import com.photosync.app.sync.PhotoSyncWorker
+import com.photosync.app.network.FreeLanSyncApiClient
+import com.photosync.app.sync.FreeLanSyncWorker
 import com.photosync.app.sync.SyncManager
 import com.photosync.app.ui.DashboardScreen
 import com.photosync.app.ui.PairingScreen
@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
     /** Set from freelansync:// deep links (onCreate/onNewIntent), consumed by the pairing UI. */
     private var pendingDeepLink by mutableStateOf<String?>(null)
     private var telemetryManager: com.photosync.app.service.DeviceTelemetryManager? = null
-    private val apiClient = PhotoSyncApiClient()
+    private val apiClient = FreeLanSyncApiClient()
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -212,8 +212,8 @@ class MainActivity : ComponentActivity() {
                                 progressTotal = 0
                                 syncManager.triggerImmediateSync().observe(this) { workInfo ->
                                     if (workInfo != null) {
-                                        val cur = workInfo.progress.getInt(PhotoSyncWorker.KEY_PROGRESS_CURRENT, 0)
-                                        val tot = workInfo.progress.getInt(PhotoSyncWorker.KEY_PROGRESS_TOTAL, 0)
+                                        val cur = workInfo.progress.getInt(FreeLanSyncWorker.KEY_PROGRESS_CURRENT, 0)
+                                        val tot = workInfo.progress.getInt(FreeLanSyncWorker.KEY_PROGRESS_TOTAL, 0)
                                         progressCurrent = cur
                                         progressTotal = tot
 
@@ -223,7 +223,7 @@ class MainActivity : ComponentActivity() {
                                             Toast.makeText(this, "Backup finished successfully!", Toast.LENGTH_SHORT).show()
                                         } else if (workInfo.state == WorkInfo.State.FAILED) {
                                             isSyncing = false
-                                            val reason = workInfo.outputData.getString(PhotoSyncWorker.KEY_FAILURE_REASON)
+                                            val reason = workInfo.outputData.getString(FreeLanSyncWorker.KEY_FAILURE_REASON)
                                             Toast.makeText(this, reason ?: "Backup failed. Ensure server is online.", Toast.LENGTH_SHORT).show()
                                         }
                                     }

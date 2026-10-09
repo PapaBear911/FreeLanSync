@@ -4,7 +4,7 @@ import android.app.Application
 import com.photosync.app.data.PreferencesManager
 import com.photosync.app.sync.SyncManager
 
-class PhotoSyncApplication : Application() {
+class FreeLanSyncApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         val prefs = PreferencesManager(this)
