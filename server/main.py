@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=SERVICE_NAME,
-    version="1.1.0",
+    version="1.2.0",
     description="High-speed gigabit local Wi-Fi transfer, backup, and continuity server for Android & Desktop",
     lifespan=lifespan
 )
@@ -196,7 +196,7 @@ async def ping():
     return {
         "status": "online",
         "service": SERVICE_NAME,
-        "version": "1.1.0",
+        "version": "1.2.0",
         "host": get_local_ip(),
         "port": SERVER_PORT
     }
