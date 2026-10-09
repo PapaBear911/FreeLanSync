@@ -51,6 +51,8 @@ _tail.py
 _hash.py
 _live_check.py
 _pub_step.txt
+*.log
+.*.txt
 
 # Release staging backups (local only, regenerated per publish)
 releases/_backup-*/
