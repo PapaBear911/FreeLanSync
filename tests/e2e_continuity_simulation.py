@@ -1,4 +1,4 @@
-"""End-to-End Simulation Test: Complete PhotoSync & Synco Device Continuity Suite.
+"""End-to-End Simulation Test: Complete FreeLanSync & Synco Device Continuity Suite.
 Tests WebSocket bridge, Battery telemetry, Notification mirroring, Media playback control,
 Incoming call alert, Clipboard sync, Quick-Drop file transfer, and Photo archival.
 """
@@ -22,7 +22,7 @@ client = TestClient(app)
 
 def run_simulation():
     print("=" * 65)
-    print("  PhotoSync & Synco Full Continuity Suite: E2E Simulation")
+    print("  FreeLanSync & Synco Full Continuity Suite: E2E Simulation")
     print("=" * 65)
 
     # 1. Ping Server

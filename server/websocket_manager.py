@@ -4,7 +4,7 @@ import logging
 from typing import Dict, Set, Any, Optional
 from fastapi import WebSocket
 
-logger = logging.getLogger("photosync.websocket")
+logger = logging.getLogger("freelansync.websocket")
 
 class ConnectionManager:
     """Manages real-time bidirectional WebSocket connections between Web/Electron UI and Android devices."""

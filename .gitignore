@@ -43,6 +43,23 @@ gradle-8.7/
 *.jks
 *.keystore
 
+# Scratch / session build logs (repo root helpers, never commit)
+_*.log
+_*.txt
+_launch.py
+_tail.py
+_hash.py
+_live_check.py
+_pub_step.txt
+
+# Release staging backups (local only, regenerated per publish)
+releases/_backup-*/
+
+# Local tool state
+.kilo/
+android/tools/__pycache__/
+android/tools/icon_preview.png
+
 # IDE / OS
 .idea/
 .vscode/*

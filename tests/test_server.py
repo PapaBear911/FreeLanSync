@@ -1,4 +1,4 @@
-"""Comprehensive tests for PhotoSync Desktop Server."""
+"""Comprehensive tests for FreeLanSync Desktop Server."""
 import pytest
 import hashlib
 import tempfile
@@ -17,7 +17,7 @@ def setup_test_env(tmp_path, monkeypatch):
     """Isolate database and storage to a temporary directory during tests."""
     test_storage = tmp_path / "test_storage"
     test_backup = test_storage / "Backups"
-    test_db = test_storage / "test_photosync.db"
+    test_db = test_storage / "test_freelansync.db"
 
     test_storage.mkdir(parents=True, exist_ok=True)
     test_backup.mkdir(parents=True, exist_ok=True)

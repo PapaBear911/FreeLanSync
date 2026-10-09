@@ -94,6 +94,7 @@ PUBLIC_ALLOWLIST = {
     "/api/v1/photos/recent",
     # Photo serving (resolve+containment, TD-005).
     "/api/v1/photos/view/{relative_path:path}",
+    "/api/v1/photos/thumb/{relative_path:path}",  # generated JPEGs only; same containment as view (TD-038)
     # Storage settings (validate before use; open-folder contained, TD-010).
     "/api/v1/settings",
     "/api/v1/settings/storage-suggestions",

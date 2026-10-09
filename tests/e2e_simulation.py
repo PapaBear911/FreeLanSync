@@ -17,7 +17,7 @@ from server.auth import pairing_manager
 
 def run_simulation():
     print("=" * 60)
-    print("   PhotoSync End-to-End Simulation: Phone -> PC Server")
+    print("   FreeLanSync End-to-End Simulation: Phone -> PC Server")
     print("=" * 60)
     
     base_url = f"http://127.0.0.1:{SERVER_PORT}"

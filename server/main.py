@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for PhotoSync Server."""
+"""FastAPI application entrypoint for FreeLanSync Server."""
 from contextlib import asynccontextmanager
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, Form, status, WebSocket, WebSocketDisconnect, Query, Request
@@ -48,15 +48,18 @@ from .schemas import (
     ValidatePathRequest,
 )
 from .discovery import mdns_advertiser
+from .udp_discovery import udp_discovery
 from .storage import storage_manager
+from .thumbnails import get_or_create_thumbnail
 from .websocket_manager import ws_manager
 from .transfer_manager import transfer_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize Database and mDNS
+    # Startup: Initialize Database, mDNS and the UDP discovery fallback
     init_db()
     mdns_advertiser.start()
+    udp_discovery.start()
     
     # Ensure static/FreeLanSync.apk exists if possible
     apk_found = find_apk_file()
@@ -71,7 +74,8 @@ async def lifespan(app: FastAPI):
             
     print(f"[{SERVICE_NAME}] Ready at http://{get_local_ip()}:{SERVER_PORT}")
     yield
-    # Shutdown: Clean up mDNS
+    # Shutdown: Clean up discovery advertisers
+    udp_discovery.stop()
     mdns_advertiser.stop()
 
 app = FastAPI(
@@ -185,7 +189,7 @@ async def get_pairing_info(request: Request):
         "apk_qr_svg": apk_qr_svg,
         "apk_download_url": f"http://{local_ip}:{SERVER_PORT}/static/FreeLanSync.apk"
     }
-    # TD-012 (S1): the live PIN (and QR that encodes it) is only visible to the
+    # TD-012 (S1): the live PIN (and QR/URI that encode it) is only visible to the
     # local operator (desktop dashboard on localhost). Remote LAN clients may
     # fetch connection metadata but never the PIN itself. "testclient" is the
     # in-process ASGI test identity — it never appears on a real socket.
@@ -194,6 +198,10 @@ async def get_pairing_info(request: Request):
         payload["pin"] = info["pin"]
         payload["qr_payload"] = info["qr_payload"]
         payload["qr_svg"] = qr_svg
+        # Deep-link encoding of the same payload (freelansync://host:port?pin=...)
+        # consumed by the Android QR scanner; PIN-bearing, so loopback-only too.
+        payload["pairing_uri"] = info["pairing_uri"]
+        payload["pairing_uri_scheme"] = info["pairing_uri_scheme"]
     return payload
 
 @app.post("/api/v1/pairing/verify", response_model=PairResponse)
@@ -260,8 +268,20 @@ async def list_devices():
     return {"devices": get_all_devices()}
 
 @app.get("/api/v1/photos/recent")
-async def list_recent_media():
-    return {"recent_media": get_recent_media(limit=60)}
+async def list_recent_media(
+    limit: int = Query(60, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    page, has_more = get_recent_media(limit=limit, offset=offset)
+    return {
+        "recent_media": page,
+        "pagination": {
+            "limit": limit,
+            "offset": offset,
+            "returned": len(page),
+            "has_more": has_more,
+        },
+    }
 
 @app.get("/api/v1/settings")
 async def get_settings():
@@ -369,7 +389,30 @@ async def view_photo(relative_path: str):
         raise HTTPException(status_code=404, detail="Photo not found")
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Photo not found")
-    return FileResponse(file_path)
+    # TD-038: allow the dashboard lightbox to cache originals instead of
+    # revalidating them on every refresh tick (ETag/Last-Modified still sent).
+    return FileResponse(file_path, headers={"Cache-Control": "public, max-age=3600"})
+
+@app.get("/api/v1/photos/thumb/{relative_path:path}")
+async def photo_thumbnail(relative_path: str):
+    # Classification: PUBLIC (LAN dashboard gallery) — same TD-005
+    # resolve+containment as view_photo; serves only generated JPEG thumbnails,
+    # never raw originals (TD-038).
+    backup_root = get_backup_dir().resolve()
+    file_path = (get_backup_dir() / relative_path).resolve()
+    if file_path != backup_root and backup_root not in file_path.parents:
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    thumb_path = get_or_create_thumbnail(file_path)
+    if thumb_path is None:
+        raise HTTPException(status_code=404, detail="No thumbnail for this file")
+    return FileResponse(
+        thumb_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
 
 # --- Real-Time Device Continuity WebSocket Bridge ---
 

@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
+    <!-- QR pairing scanner (camera is optional: app degrades to manual entry) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <!-- Storage and Media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
@@ -22,20 +27,31 @@
     <application
         android:name=".PhotoSyncApplication"
         android:allowBackup="true"
-        android:icon="@android:drawable/ic_menu_camera"
+        android:icon="@mipmap/ic_launcher"
         android:label="FreeLanSync"
-        android:roundIcon="@android:drawable/ic_menu_camera"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PhotoSync"
+        android:theme="@style/Theme.FreeLanSync"
         android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.PhotoSync">
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.FreeLanSync">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Deep link: freelansync://<host>:<port>?pin=xxxxxx auto-pairs.
+                 Omitting host/port matches any authority (wildcards are not
+                 valid for android:host/android:port). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="freelansync" />
             </intent-filter>
         </activity>
 

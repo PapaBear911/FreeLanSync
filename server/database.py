@@ -1,4 +1,4 @@
-"""Database models and management for PhotoSync metadata."""
+"""Database models and management for FreeLanSync metadata."""
 import sqlite3
 import datetime
 from pathlib import Path
@@ -118,13 +118,23 @@ def get_all_devices(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
         """)
         return [dict(r) for r in cur.fetchall()]
 
-def get_recent_media(limit: int = 50, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+def get_recent_media(
+    limit: int = 50,
+    offset: int = 0,
+    db_path: Optional[Path] = None
+) -> tuple[List[Dict[str, Any]], bool]:
+    """Return one page of media, newest first, plus whether another page exists.
+
+    Orders by id, not backed_up_at: that column ties within the same second, and a
+    tie across a page boundary would repeat or skip rows while paging.
+    """
     with get_connection(db_path) as conn:
         cur = conn.execute("""
             SELECT m.*, COALESCE(d.device_name, 'Unknown Device') as device_name 
             FROM media_files m
             LEFT JOIN devices d ON m.device_id = d.device_id
-            ORDER BY m.backed_up_at DESC
-            LIMIT ?;
-        """, (limit,))
-        return [dict(r) for r in cur.fetchall()]
+            ORDER BY m.id DESC
+            LIMIT ? OFFSET ?;
+        """, (limit + 1, offset))
+        rows = [dict(r) for r in cur.fetchall()]
+    return rows[:limit], len(rows) > limit

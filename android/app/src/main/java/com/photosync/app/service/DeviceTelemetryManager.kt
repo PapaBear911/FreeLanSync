@@ -75,7 +75,7 @@ class DeviceTelemetryManager(private val context: Context) {
     fun setPhoneClipboard(text: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
         lastClipboardText = text
-        val clip = ClipData.newPlainText("PhotoSync", text)
+        val clip = ClipData.newPlainText("FreeLanSync", text)
         clipboard.setPrimaryClip(clip)
     }
 }

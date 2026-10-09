@@ -22,18 +22,32 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photosync.app.network.DiscoveredServer
+import com.photosync.app.network.PairingPayload
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PairingScreen(
     discoveredServers: List<DiscoveredServer>,
     onPairSubmitted: (host: String, port: Int, pin: String) -> Unit,
+    onScanQrClicked: () -> Unit,
+    onPayloadSubmitted: (String) -> Unit,
+    scannedPayload: PairingPayload?,
     isLoading: Boolean,
     errorMessage: String?
 ) {
     var hostInput by remember { mutableStateOf("") }
     var portInput by remember { mutableStateOf("8080") }
     var pinInput by remember { mutableStateOf("") }
+    var linkInput by remember { mutableStateOf("") }
+
+    // A payload from a QR scan / pasted link / deep link pre-fills the form so
+    // the user only has to confirm (or complete the PIN).
+    LaunchedEffect(scannedPayload) {
+        val payload = scannedPayload ?: return@LaunchedEffect
+        hostInput = payload.host
+        portInput = payload.port.toString()
+        payload.pin?.let { pinInput = it.take(6) }
+    }
 
     Scaffold(
         topBar = {
@@ -54,6 +68,29 @@ fun PairingScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onScanQrClicked,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    enabled = !isLoading
+                ) {
+                    Icon(
+                        Icons.Default.QrCodeScanner,
+                        contentDescription = "Scan QR code"
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Scan QR Code to Pair", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                Text(
+                    text = "Scan the QR code shown on the desktop dashboard for one-tap pairing. " +
+                        "If the camera is unavailable, paste the pairing link below instead.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            item {
                 Text(
                     text = "Discovered Servers on Wi-Fi",
                     style = MaterialTheme.typography.titleMedium,
@@ -163,6 +200,23 @@ fun PairingScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+            }
+
+            item {
+                OutlinedTextField(
+                    value = linkInput,
+                    onValueChange = { linkInput = it },
+                    label = { Text("or paste pairing link / code") },
+                    placeholder = { Text("freelansync://192.168.1.50:8080?pin=123456") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                TextButton(
+                    onClick = { onPayloadSubmitted(linkInput.trim()) },
+                    enabled = !isLoading && linkInput.isNotBlank()
+                ) {
+                    Text("Use Pasted Link")
+                }
             }
 
             if (errorMessage != null) {

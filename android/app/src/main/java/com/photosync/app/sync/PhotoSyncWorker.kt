@@ -42,10 +42,10 @@ class PhotoSyncWorker(
         }
 
         createNotificationChannel()
-        setForeground(createForegroundInfo(0, 0, "Scanning photos..."))
+        setForeground(createForegroundInfo(0, 0, "Scanning photos & videos..."))
 
         try {
-            // 1. Scan local photos from MediaStore
+            // 1. Scan local photos & videos from MediaStore (both collections, TD-039)
             val mediaItems = scanner.queryMediaItems(limit = 1000)
             if (mediaItems.isEmpty()) {
                 return@withContext Result.success()
@@ -92,7 +92,7 @@ class PhotoSyncWorker(
                 val item = hashMap[missingHash] ?: continue
                 uploadedCount++
 
-                val progressMsg = "Backing up $uploadedCount of $totalToUpload photos"
+                val progressMsg = "Backing up $uploadedCount of $totalToUpload items"
                 setForeground(createForegroundInfo(uploadedCount, totalToUpload, progressMsg))
                 setProgress(workDataOf(
                     KEY_PROGRESS_CURRENT to uploadedCount,
@@ -129,7 +129,7 @@ class PhotoSyncWorker(
 
     private fun createForegroundInfo(current: Int, total: Int, text: String): ForegroundInfo {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("PhotoSync Backup")
+            .setContentTitle("FreeLanSync Backup")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_upload)
             .setOngoing(true)
@@ -145,7 +145,7 @@ class PhotoSyncWorker(
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "PhotoSync Backup Service"
+            val name = "FreeLanSync Backup Service"
             val importance = NotificationManager.IMPORTANCE_LOW
             val channel = NotificationChannel(CHANNEL_ID, name, importance)
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

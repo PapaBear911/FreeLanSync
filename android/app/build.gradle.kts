@@ -48,6 +48,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    testOptions {
+        unitTests {
+            // Robolectric needs merged resources/manifest for the scanner guard tests.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -71,5 +77,10 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 
+    // QR pairing scanner (CaptureActivity + ScanContract Activity Result API)
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
     testImplementation("junit:junit:4.13.2")
+    // Robolectric: JVM guard test for MediaStoreScanner (TD-039 video enumeration)
+    testImplementation("org.robolectric:robolectric:4.11.1")
 }

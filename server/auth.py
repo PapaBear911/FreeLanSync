@@ -7,8 +7,15 @@ import qrcode.image.svg
 import json
 import re
 from typing import Dict, Optional, Tuple
-from .config import get_local_ip, SERVER_PORT
+from .config import get_local_ip, SERVER_PORT, PAIRING_SCHEME
 from .database import register_device
+
+def build_pairing_uri(host: str, port: int, pin: str) -> str:
+    """Deep-link form of the pairing payload: freelansync://host:port?pin=123456
+
+    Kept alongside the JSON QR payload so clients can consume either encoding.
+    """
+    return f"{PAIRING_SCHEME}://{host}:{port}?pin={pin}&service=freelansync"
 
 class PairingManager:
     MAX_ATTEMPTS = 5
@@ -85,7 +92,11 @@ class PairingManager:
             "host": local_ip,
             "port": SERVER_PORT,
             "expires_in": max(0, int(self.pin_expiry_seconds - (time.time() - self.pin_created_at))),
-            "qr_payload": json.dumps(payload)
+            "qr_payload": json.dumps(payload),
+            # Deep-link encoding of the same payload (see build_pairing_uri);
+            # like the PIN it is only ever exposed to the local operator (TD-012).
+            "pairing_uri": build_pairing_uri(local_ip, SERVER_PORT, pin),
+            "pairing_uri_scheme": PAIRING_SCHEME,
         }
 
     def _matrix_to_svg(self, text_payload: str, size_px: int = 240) -> str:

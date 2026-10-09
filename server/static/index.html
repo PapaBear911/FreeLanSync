@@ -477,6 +477,18 @@
                 <i data-lucide="copy" class="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-300 transition-colors"></i>
               </div>
             </div>
+
+            <!-- Deep-Link Pairing Payload (scan or copy/paste into the Android app) -->
+            <div onclick="copyPairingUriToClipboard()" class="ios-glass-subtle rounded-2xl p-3 flex items-center justify-between cursor-pointer group hover:border-indigo-500/40 transition-colors" title="Click to copy freelansync:// pairing link">
+              <div class="flex items-center gap-2">
+                <i data-lucide="link" class="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors"></i>
+                <span class="text-xs text-slate-400 uppercase font-semibold">Link:</span>
+              </div>
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-[10px] font-mono text-indigo-300/90 truncate max-w-[150px]" id="pairingUri">freelansync://...</span>
+                <i data-lucide="copy" class="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-300 transition-colors flex-shrink-0"></i>
+              </div>
+            </div>
           </div>
 
           <div class="mt-4 pt-4 border-t border-white/[0.06] flex items-center gap-2 text-xs text-slate-400">
@@ -588,6 +600,7 @@
             <p class="text-xs">No media backed up yet. New photos from phone will appear here.</p>
           </div>
         </div>
+        <div id="gallerySentinel" class="col-span-full py-6 text-center"></div>
       </div>
 
     </section>
@@ -1277,6 +1290,16 @@
       if (pin && pin !== '------') {
         navigator.clipboard.writeText(pin);
         showToast(`PIN ${pin} copied to clipboard!`);
+      }
+    }
+
+    // Helper: freelansync:// deep-link Copy
+    function copyPairingUriToClipboard() {
+      const el = document.getElementById('pairingUri');
+      const uri = el ? el.innerText : '';
+      if (uri && uri !== 'freelansync://...') {
+        navigator.clipboard.writeText(uri);
+        showToast('Pairing link copied to clipboard!');
       }
     }
 
@@ -2085,6 +2108,11 @@
         const data = await res.json();
         document.getElementById('pinCode').innerText = data.pin;
         document.getElementById('qrContainer').innerHTML = data.qr_svg;
+        const pairingUriEl = document.getElementById('pairingUri');
+        if (pairingUriEl && data.pairing_uri) {
+          pairingUriEl.innerText = data.pairing_uri;
+          pairingUriEl.title = data.pairing_uri;
+        }
         const srvAddr = `http://${data.host}:${data.port}`;
         document.getElementById('serverAddress').innerText = srvAddr;
         const beamHostEl = document.getElementById('beamHostIp');
@@ -2363,15 +2391,102 @@
       }
     }
 
+    // TD-038: skip gallery rebuilds when the media list has not changed so the
+    // 12s refresh tick stops re-fetching and re-decoding every tile.
+    let lastGallerySignature = null;
+    // Feature #1: gallery pagination. Page 0 is refetched by the refresh tick;
+    // deeper pages are appended and never clobbered by it.
+    const GALLERY_PAGE_SIZE = 60;
+    let galleryLoaded = 0;
+    let galleryHasMore = false;
+    let galleryLoading = false;
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function renderGalleryTiles(media) {
+      return media.map(m => {
+        const isVideo = m.mime_type && m.mime_type.startsWith('video');
+        const viewUrl = `/api/v1/photos/view/${encodeURIComponent(m.relative_path)}`;
+        const thumbUrl = `/api/v1/photos/thumb/${encodeURIComponent(m.relative_path)}`;
+        const name = escapeHtml(m.original_filename);
+        const metaStr = `${escapeHtml(m.device_name)} • ${formatBytes(m.file_size)}`;
+        return `
+          <div onclick="openPhotoLightbox('${viewUrl}', '${name}', '${metaStr}')" class="group relative aspect-square bg-slate-900/60 rounded-2xl overflow-hidden border border-white/[0.08] shadow-sm hover:border-indigo-500/50 cursor-pointer transition-all">
+            ${isVideo ? `
+              <div class="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                <i data-lucide="video" class="w-7 h-7 text-indigo-400 mb-1"></i>
+                <span class="text-[10px] truncate max-w-[80%]">${name}</span>
+              </div>
+            ` : `
+              <img src="${thumbUrl}"
+                   data-fallback="${viewUrl}"
+                   alt="${name}"
+                   loading="lazy"
+                   decoding="async"
+                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                   onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src=this.dataset.fallback;}else{this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-slate-500 text-xs\\'>${name}</div>'}">
+            `}
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2.5 flex flex-col justify-end">
+              <p class="text-[11px] font-semibold text-white truncate">${name}</p>
+              <p class="text-[10px] text-slate-400">${metaStr}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateGallerySentinel() {
+      const sentinel = document.getElementById('gallerySentinel');
+      if (!sentinel) return;
+      sentinel.innerHTML = galleryLoading
+        ? `<span class="text-xs text-slate-500">Loading more…</span>`
+        : galleryHasMore
+          ? `<button onclick="loadMoreGallery()" class="text-xs font-semibold px-4 py-2 rounded-full bg-white/[0.06] border border-white/[0.08] text-slate-200 hover:border-indigo-500/50 transition-all">Load more</button>`
+          : (galleryLoaded > 0 ? `<span class="text-[10px] text-slate-600">End of gallery</span>` : '');
+    }
+
+    async function loadMoreGallery() {
+      if (galleryLoading || !galleryHasMore) return;
+      galleryLoading = true;
+      updateGallerySentinel();
+      try {
+        const res = await fetch(`/api/v1/photos/recent?limit=${GALLERY_PAGE_SIZE}&offset=${galleryLoaded}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const page = data.recent_media || [];
+        const gallery = document.getElementById('mediaGallery');
+        gallery.insertAdjacentHTML('beforeend', renderGalleryTiles(page));
+        galleryLoaded += page.length;
+        galleryHasMore = data.pagination ? data.pagination.has_more : false;
+        document.getElementById('galleryCount').innerText = `${galleryLoaded} items`;
+      } catch (err) {
+        console.error('Failed to load more media', err);
+      } finally {
+        galleryLoading = false;
+        lucide.createIcons();
+        updateGallerySentinel();
+      }
+    }
+
     async function fetchRecentMedia() {
       try {
         const res = await fetch('/api/v1/photos/recent');
         if (!res.ok) return;
         const data = await res.json();
         const media = data.recent_media || [];
-        document.getElementById('galleryCount').innerText = `${media.length} items`;
 
         const gallery = document.getElementById('mediaGallery');
+        const signature = media.map(m => `${m.relative_path}:${m.backed_up_at ?? ''}:${m.file_size}`).join('|');
+        if (signature === lastGallerySignature) return;
+        lastGallerySignature = signature;
+
+        galleryLoaded = media.length;
+        galleryHasMore = data.pagination ? data.pagination.has_more : false;
+        document.getElementById('galleryCount').innerText = `${galleryLoaded} items`;
         if (media.length === 0) {
           gallery.innerHTML = `
             <div class="col-span-full py-14 text-center text-slate-500">
@@ -2380,36 +2495,22 @@
             </div>
           `;
         } else {
-          gallery.innerHTML = media.map(m => {
-            const isVideo = m.mime_type && m.mime_type.startsWith('video');
-            const viewUrl = `/api/v1/photos/view/${encodeURIComponent(m.relative_path)}`;
-            const metaStr = `${m.device_name} • ${formatBytes(m.file_size)}`;
-            return `
-              <div onclick="openPhotoLightbox('${viewUrl}', '${m.original_filename}', '${metaStr}')" class="group relative aspect-square bg-slate-900/60 rounded-2xl overflow-hidden border border-white/[0.08] shadow-sm hover:border-indigo-500/50 cursor-pointer transition-all">
-                ${isVideo ? `
-                  <div class="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                    <i data-lucide="video" class="w-7 h-7 text-indigo-400 mb-1"></i>
-                    <span class="text-[10px] truncate max-w-[80%]">${m.original_filename}</span>
-                  </div>
-                ` : `
-                  <img src="${viewUrl}" 
-                       alt="${m.original_filename}" 
-                       loading="lazy" 
-                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                       onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-slate-500 text-xs\\'>${m.original_filename}</div>'">
-                `}
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2.5 flex flex-col justify-end">
-                  <p class="text-[11px] font-semibold text-white truncate">${m.original_filename}</p>
-                  <p class="text-[10px] text-slate-400">${metaStr}</p>
-                </div>
-              </div>
-            `;
-          }).join('');
+          gallery.innerHTML = renderGalleryTiles(media);
         }
         lucide.createIcons();
+        updateGallerySentinel();
       } catch (err) {
         console.error('Failed to fetch media', err);
       }
+    }
+
+    // Feature #1: load the next page when the sentinel scrolls into view.
+    function initGalleryInfiniteScroll() {
+      const sentinel = document.getElementById('gallerySentinel');
+      if (!sentinel || !('IntersectionObserver' in window)) return;
+      new IntersectionObserver((entries) => {
+        if (entries.some(e => e.isIntersecting)) loadMoreGallery();
+      }, { rootMargin: '400px' }).observe(sentinel);
     }
 
     function refreshData() {
@@ -2427,6 +2528,7 @@
       lucide.createIcons();
       refreshData();
       connectWebSocket();
+      initGalleryInfiniteScroll();
       startBeamAnimation();
       animateTabTransition(document.getElementById('tabSectionVault'));
       setInterval(refreshData, 12000);

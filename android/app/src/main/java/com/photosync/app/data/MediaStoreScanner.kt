@@ -4,7 +4,6 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import java.io.InputStream
 import java.security.MessageDigest
 
 data class LocalMediaItem(
@@ -19,10 +18,46 @@ data class LocalMediaItem(
 
 class MediaStoreScanner(private val context: Context) {
 
+    /**
+     * Enumerates BOTH images and videos (TD-039 fix): the previous images-only
+     * query silently skipped every video, so videos could never be backed up.
+     *
+     * Each collection is queried newest-first and capped at [limit]; the merged
+     * result is re-sorted across collections and capped again, so the newest
+     * [limit] items overall win regardless of media type.
+     */
     fun queryMediaItems(limit: Int = 500): List<LocalMediaItem> {
-        val items = mutableListOf<LocalMediaItem>()
-        val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val images = queryCollection(
+            collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            defaultMime = "image/jpeg",
+            defaultName = "unnamed_image.jpg",
+            limit = limit
+        )
+        val videos = queryCollection(
+            collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            defaultMime = "video/mp4",
+            defaultName = "unnamed_video.mp4",
+            limit = limit
+        )
+        return (images + videos)
+            .sortedByDescending { item ->
+                // DATE_TAKEN can be 0 for some rows; fall back to DATE_ADDED (seconds).
+                if (item.dateTaken > 0) item.dateTaken else item.dateAdded * 1000
+            }
+            .take(limit)
+    }
 
+    private fun queryCollection(
+        collection: Uri,
+        defaultMime: String,
+        defaultName: String,
+        limit: Int
+    ): List<LocalMediaItem> {
+        val items = mutableListOf<LocalMediaItem>()
+
+        // _id/_display_name/mime_type/_size/date_added/datetaken are the shared
+        // MediaColumns/BaseColumns names — identical for image and video rows,
+        // so one projection serves both collections.
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
@@ -45,8 +80,8 @@ class MediaStoreScanner(private val context: Context) {
 
                 while (cursor.moveToNext() && items.size < limit) {
                     val id = cursor.getLong(idCol)
-                    val name = cursor.getString(nameCol) ?: "unnamed_image.jpg"
-                    val mime = cursor.getString(mimeCol) ?: "image/jpeg"
+                    val name = cursor.getString(nameCol) ?: defaultName
+                    val mime = cursor.getString(mimeCol) ?: defaultMime
                     val size = cursor.getLong(sizeCol)
                     val added = cursor.getLong(addedCol)
                     val taken = cursor.getLong(takenCol)

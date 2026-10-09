@@ -288,6 +288,11 @@ SERVICE_NAME = "FreeLanSync Desktop Server"
 MDNS_SERVICE_TYPE = "_freelansync._tcp.local."
 LEGACY_MDNS_SERVICE_TYPE = "_photosync._tcp.local."
 
+# URI scheme encoded in pairing deep-links / QR payloads (freelansync://host:port?pin=...)
+PAIRING_SCHEME = "freelansync"
+# UDP broadcast discovery responder port (mobile clients broadcast FREELANSYNC_DISCOVER_V1)
+DISCOVERY_UDP_PORT = int(os.getenv("FREELANSYNC_DISCOVERY_PORT", os.getenv("PHOTOSYNC_DISCOVERY_PORT", "8079")))
+
 def get_local_ip() -> str:
     """Detect the local primary IP address on Wi-Fi/LAN."""
     try:
