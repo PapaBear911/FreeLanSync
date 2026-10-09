@@ -23,3 +23,10 @@ FreeLanSync is a local-network file-sync and device-continuity project: FastAPI 
 - `desktop-app/package.json` is authoritative for desktop scripts and packaging resources.
 - Avoid editing `build/`, `dist/`, `dist-electron/`, `dist-package/`, and generated release artifacts unless explicitly asked.
 - Prefer targeted tests for the changed subsystem, then run the full pytest suite when practical.
+
+## Architecture & Code Standards
+
+- **Android Naming Standards**: All core Android classes and source files use canonical `FreeLanSync*` identifiers (`FreeLanSyncApplication.kt`, `FreeLanSyncApiClient.kt`, `FreeLanSyncNotificationListener.kt`, `FreeLanSyncWorker.kt`). Do not create or reintroduce legacy `PhotoSync*.kt` source files (enforced by `test_rebranding.py`).
+- **Concurrency & SQLite Lock Invariants (TD-019)**: In `server/database.py`, all connections must execute `PRAGMA busy_timeout = 5000;`. Schema DDL `init_db()` is cached per database path in `_initialized_dbs` and must not re-run on subsequent connections. Upload staging must append random UUIDs (`.tmp_{pid}_{uuid}`) to avoid temp file collision during concurrent uploads.
+- **Android Parallel Uploads**: Media upload in `FreeLanSyncWorker.kt` dispatches parallel coroutines bounded by `Semaphore(permits = 4)` with `supervisorScope` and thread-safe atomics.
+- **Security & Path Sanitization**: Quick-Drop and download targets must extract `File(filename).name` and assert containment within the download directory (`targetFile.canonicalPath.startsWith(...)`, TD-030). All downloads stage to `.tmp` files and clean up on failure (TD-034).

@@ -2,6 +2,15 @@
 
 FreeLanSync synchronizes files and device state across devices on a local network. The repository contains a FastAPI server, an Electron desktop host, and an Android client.
 
+> 📖 **New User?** Check out the [Visual User Guide & Walkthrough](docs/USER_GUIDE.md) for step-by-step pairing, backup setup, and troubleshooting.
+
+## Key Features
+
+- ⚡ **Gigabit Camera Roll Backup**: Zero-copy stream upload from Android `MediaStore`, SHA-256 bit-for-bit deduplication, and 4x parallel coroutine uploads.
+- 🚀 **Zero-Cloud Quick-Drop**: Drag-and-drop any file on the PC dashboard to stream directly over Wi-Fi into your phone's `Downloads` folder.
+- 📋 **Seamless Device Continuity**: Instant bidirectional clipboard sync and Android notification mirroring to desktop dashboard.
+- 🔒 **Privacy-First Architecture**: Operates 100% on your local Wi-Fi. PIN pairing is loopback-protected; high-risk operations require authenticated Bearer tokens.
+
 ## Quick start
 
 ### Server (Windows)
@@ -87,7 +96,7 @@ run it only on networks you trust.
 
 - Runtime configuration and database files may be created at the repository root or in the OS application-data directory. Set `FREELANSYNC_DATA_DIR` to choose a writable data directory.
 - The desktop launcher expects Python/Uvicorn to be available at runtime.
-- The Android package namespace still uses the legacy `com.photosync.app` identifier.
+- Core Android source files use canonical naming (`FreeLanSyncApplication.kt`, `FreeLanSyncApiClient.kt`, `FreeLanSyncWorker.kt`, `FreeLanSyncNotificationListener.kt`). The underlying package ID remains `com.photosync.app` for installed app continuity.
 - Documentation includes historical PhotoSync naming. Current product branding is FreeLanSync.
 
 ## Further reading
