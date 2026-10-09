@@ -125,11 +125,11 @@ def find_apk_file() -> Optional[Path]:
     candidates = [
         Path(__file__).resolve().parent / "static" / "FreeLanSync.apk",
         base_repo / "server" / "static" / "FreeLanSync.apk",
-        base_repo / "releases" / "FreeLanSync-v1.1.0.apk",
+        base_repo / "releases" / "FreeLanSync-v1.2.0.apk",
         base_repo / "releases" / "FreeLanSync.apk",
         base_repo / "android" / "app" / "build" / "outputs" / "apk" / "release" / "app-release.apk",
-        Path(__file__).resolve().parent.parent.parent / "releases" / "FreeLanSync-v1.1.0.apk",
-        Path.home() / "Downloads" / "FreeLanSync-v1.1.0.apk",
+        Path(__file__).resolve().parent.parent.parent / "releases" / "FreeLanSync-v1.2.0.apk",
+        Path.home() / "Downloads" / "FreeLanSync-v1.2.0.apk",
         Path.home() / "Downloads" / "FreeLanSync.apk"
     ]
     for cand in candidates:
@@ -154,9 +154,9 @@ async def download_apk_endpoint():
     return FileResponse(
         path=str(apk_path),
         media_type="application/vnd.android.package-archive",
-        filename="FreeLanSync-v1.1.0.apk",
+        filename="FreeLanSync-v1.2.0.apk",
         headers={
-            "Content-Disposition": 'attachment; filename="FreeLanSync-v1.1.0.apk"',
+            "Content-Disposition": 'attachment; filename="FreeLanSync-v1.2.0.apk"',
             "Cache-Control": "no-cache"
         }
     )
