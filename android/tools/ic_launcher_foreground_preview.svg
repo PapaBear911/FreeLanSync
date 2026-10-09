@@ -1,6 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 108 108"><defs><linearGradient id="bg" x1="0" y1="0" x2="108" y2="108" gradientUnits="userSpaceOnUse"><stop stop-color="#312E81"/><stop offset="1" stop-color="#0F172A"/></linearGradient></defs><rect width="108" height="108" fill="url(#bg)"/><path d="M79.842,63.406 A27.5,27.5 0 0 1 30.184,67.75 L36.246,64.25 A20.5,20.5 0 0 0 73.264,61.011 Z" fill="#38BDF8"/>
-<path d="M28.158,44.594 A27.5,27.5 0 0 1 77.816,40.25 L71.754,43.75 A20.5,20.5 0 0 0 34.736,46.989 Z" fill="#38BDF8"/>
-<path d="M31.175,61.416 L39.583,63.009 L27.711,70.427 Z" fill="#38BDF8"/>
-<path d="M76.825,46.584 L68.417,44.991 L80.289,37.573 Z" fill="#38BDF8"/>
-<path d="M54,40 L68,54 L54,68 L40,54 Z" fill="#FFFFFF"/>
-<path d="M54,47.5 L60.5,54 L54,60.5 L47.5,54 Z" fill="#38BDF8"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 108 108">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  <rect width="108" height="108" fill="url(#bg)"/>
+  <!-- Under-pass: Indigo Strand (Desktop Vault Node) -->
+  <path d="M 64,64 A 14.142,14.142 0 1,0 64,44 L 58.5,49.5" fill="none" stroke="#6366F1" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 49.5,58.5 L 44,64" fill="none" stroke="#6366F1" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Over-pass: Electric Cyan Strand (Mobile Link Node) -->
+  <path d="M 44,64 A 14.142,14.142 0 1,1 44,44 L 64,64" fill="none" stroke="#38BDF8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

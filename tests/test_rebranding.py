@@ -41,3 +41,29 @@ def test_android_canonical_file_and_class_naming():
     assert not legacy_files, f"Legacy PhotoSync files found: {legacy_files}"
 
 
+def test_unified_mobius_hyperlink_logo_parity():
+    """Verify Desktop web dashboard and Android adaptive vector share the Mobius HyperLink mark."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    index_html = (root / "server" / "static" / "index.html").read_text(encoding="utf-8")
+    android_fg = (root / "android" / "app" / "src" / "main" / "res" / "drawable" / "ic_launcher_foreground.xml").read_text(encoding="utf-8")
+    preview_svg = (root / "android" / "tools" / "ic_launcher_foreground_preview.svg").read_text(encoding="utf-8")
+
+    # 1. Desktop dashboard has the modern Mobius HyperLink gradients & paths
+    assert "flsCyan" in index_html
+    assert "flsIndigo" in index_html
+    assert "FreeLanSync Mobius HyperLink" in index_html
+    assert "M 38,38 A 8.485,8.485" in index_html
+    assert "M 26,38 A 8.485,8.485" in index_html
+
+    # 2. Desktop favicon uses the updated Mobius HyperLink
+    assert "FreeLanSync Mobius HyperLink Favicon" in index_html
+
+    # 3. Android adaptive icon foreground has the matching Mobius knot geometry
+    assert "14.142,14.142" in android_fg
+    assert "14.142,14.142" in preview_svg
+    assert "#38BDF8" in android_fg  # Cyan mobile link
+    assert "#6366F1" in android_fg  # Indigo desktop vault
+
+
+
