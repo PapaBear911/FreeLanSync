@@ -44,8 +44,13 @@ class DeviceBridgeWebSocket(
 
         if (isConnected.get() && webSocket != null) return
 
-        val wsUrl = "ws://$host:$port/api/v1/ws/device-bridge?client_type=device&token=$token"
-        val request = Request.Builder().url(wsUrl).build()
+        // TD-028 Phase A: token travels in the Authorization header, never the
+        // query string — URLs land in server/proxy logs and logcat traces.
+        val wsUrl = "ws://$host:$port/api/v1/ws/device-bridge?client_type=device"
+        val request = Request.Builder()
+            .url(wsUrl)
+            .header("Authorization", "Bearer $token")
+            .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {

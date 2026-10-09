@@ -45,6 +45,36 @@ python -m pytest tests/
 
 A root Python dependency manifest is not currently included. Install the project's required Python packages in your environment before starting the server or tests.
 
+## Network binding & threat model
+
+The server binds to `0.0.0.0` (all interfaces) by design: phones on your LAN must
+be able to reach it. This is a local-network product, not an internet service —
+run it only on networks you trust.
+
+- **Bind address is configurable.** Set `FREELANSYNC_HOST` (or the legacy
+  `PHOTOSYNC_HOST`) before launching the server or the desktop app; both honor
+  it. To restrict the server to this machine only:
+
+  ```powershell
+  $env:FREELANSYNC_HOST = "127.0.0.1"; python -m uvicorn server.main:app --host 127.0.0.1 --port 8080
+  ```
+
+  The desktop launcher reads the same variable. With `127.0.0.1`, phones and
+  other LAN devices cannot connect — pairing, backup, and continuity all stop.
+
+- **Unauthenticated by design (public LAN routes).** Read-only dashboard and
+  LAN features are intentionally open so an unpaired browser/phone can discover
+  and pair: `/api/v1/ping`, pairing metadata (the live PIN itself is
+  loopback-only, TD-012), device/media/thumbnail reads, Quick-Drop get/delete,
+  transfer list/downloads, clipboard/continuity state (TD-008 classification).
+  Any LAN client can therefore read backups stored on this machine — treat the
+  LAN as the trust boundary.
+
+- **Authenticated routes** (backup upload, hash batch checks) require a
+  `Bearer` token issued during PIN pairing; PINs expire and are rate-limited
+  (TD-001). Transport is currently plain HTTP/WS; TLS is tracked in
+  `docs/superpowers/tech-debt.md` (TD-028 Phase B).
+
 ## Architecture
 
 - `server/` — FastAPI routes, authentication, persistence, discovery, transfers, WebSocket state, and static UI.

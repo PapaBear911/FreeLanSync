@@ -26,7 +26,8 @@ from .config import (
     test_writable,
     get_storage_presets,
     get_default_recommended_storage,
-    format_bytes
+    format_bytes,
+    MAX_UPLOAD_BYTES
 )
 from .database import (
     init_db,
@@ -52,7 +53,7 @@ from .udp_discovery import udp_discovery
 from .storage import storage_manager
 from .thumbnails import get_or_create_thumbnail
 from .websocket_manager import ws_manager
-from .transfer_manager import transfer_manager
+from .transfer_manager import transfer_manager, UploadTooLargeError
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,6 +94,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def enforce_max_upload_size(request: Request, call_next):
+    # TD-017: reject oversized uploads by declared Content-Length before the
+    # multipart body is parsed/buffered. Chunk-level checks catch lying clients.
+    content_length = request.headers.get("content-length")
+    if request.method == "POST" and content_length and content_length.isdigit():
+        if int(content_length) > MAX_UPLOAD_BYTES:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": f"Upload exceeds maximum size of {MAX_UPLOAD_BYTES} bytes"},
+            )
+    return await call_next(request)
+
+async def read_upload_limited(file: UploadFile) -> bytes:
+    # TD-017: bounded read — UploadFile.read(n) never returns more than n bytes,
+    # so no route buffers beyond the cap.
+    contents = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Upload exceeds maximum size of {MAX_UPLOAD_BYTES} bytes",
+        )
+    return contents
 
 def find_apk_file() -> Optional[Path]:
     """Find the packaged or compiled FreeLanSync Android APK across candidate locations."""
@@ -239,7 +264,7 @@ async def upload_photo(
     taken_at: Optional[str] = Form(None),
     device: dict = Depends(verify_auth)
 ):
-    contents = await file.read()
+    contents = await read_upload_limited(file)
     success, rel_path, message = storage_manager.save_media(
         device_id=device["device_id"],
         device_name=device["device_name"],
@@ -444,7 +469,18 @@ async def device_bridge_ws(
         except Exception:
             ws_manager.disconnect_ui(websocket)
     else:
-        # Authenticate Device
+        # Authenticate Device — TD-028 Phase A: prefer the Authorization header
+        # so tokens never appear in URLs (server/proxy access logs, logcat).
+        # The query-string token is kept only as a compatibility fallback for
+        # older fielded APKs: the Android client ships separately from the
+        # server (APK installs persist across server upgrades), so removing the
+        # fallback now would brick already-paired devices. Remove once fielded
+        # clients are >= the header-auth build.
+        auth_header = websocket.headers.get("authorization", "")
+        if auth_header:
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token = parts[1]
         if not token:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
@@ -478,7 +514,7 @@ async def device_bridge_ws(
 @app.post("/api/v1/drop/upload")
 async def upload_quick_drop(file: UploadFile = File(...)):
     """Upload a file from PC to send directly to paired Android devices."""
-    contents = await file.read()
+    contents = await read_upload_limited(file)
     orig_name = file.filename or "dropped_file"
     drop_info = storage_manager.save_quick_drop(
         original_filename=orig_name,
@@ -593,6 +629,10 @@ async def upload_chunked_transfer(
         )
         await ws_manager.broadcast_to_ui("TRANSFER_COMPLETED", result)
         return result
+    except UploadTooLargeError as e:
+        # TD-017: over-limit upload (declared or per-chunk) is a 413, not a 400.
+        await ws_manager.broadcast_to_ui("TRANSFER_FAILED", {"transfer_id": transfer_id, "error": str(e)})
+        raise HTTPException(status_code=413, detail=str(e))
     except Exception as e:
         await ws_manager.broadcast_to_ui("TRANSFER_FAILED", {"transfer_id": transfer_id, "error": str(e)})
         raise HTTPException(status_code=400, detail=str(e))
@@ -642,6 +682,8 @@ async def upload_folder_transfer(
         )
         await ws_manager.broadcast_to_ui("FOLDER_TRANSFER_COMPLETED", result)
         return result
+    except UploadTooLargeError as e:
+        raise HTTPException(status_code=413, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -649,9 +691,10 @@ async def upload_folder_transfer(
 async def download_folder_zip(folder_name: str, device: Optional[dict] = Depends(optional_verify_auth)):
     """Package and stream an entire directory tree as a zip archive."""
     try:
-        buf = transfer_manager.create_folder_zip(folder_name)
+        # TD-017: create_folder_zip yields chunks from a temp file on disk
+        # (validation happens synchronously, FileNotFoundError raises here).
         return StreamingResponse(
-            iter([buf.getvalue()]),
+            transfer_manager.create_folder_zip(folder_name),
             media_type="application/zip",
             headers={"Content-Disposition": f'attachment; filename="{folder_name}.zip"'}
         )

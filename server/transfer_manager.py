@@ -2,17 +2,20 @@
 Handles pre-flight space checking, atomic streaming, chunked staging, cancellation rollback, and recursive folder transfers.
 """
 import os
-import io
 import zipfile
 import shutil
 import time
 import uuid
 import logging
 from pathlib import Path, PurePath
-from typing import Dict, Any, Optional, List, Callable
-from .config import get_storage_dir, get_transfers_dir, format_bytes
+from typing import Dict, Any, Optional, List, Callable, Iterator
+from .config import get_storage_dir, get_transfers_dir, format_bytes, MAX_UPLOAD_BYTES
 
 logger = logging.getLogger("freelansync.transfer")
+
+
+class UploadTooLargeError(ValueError):
+    """TD-017: upload exceeds MAX_UPLOAD_BYTES or the declared total_size."""
 
 
 def resolve_within(base: Path, *parts: str) -> Path:
@@ -181,6 +184,11 @@ class TransferManager:
         progress_cb: Optional[Callable[[Dict[str, Any]], Any]] = None
     ) -> Dict[str, Any]:
         """Atomically stream an upload to temporary staging file, then rename upon success."""
+        # TD-017: reject an over-limit declared size before staging anything.
+        if total_size > MAX_UPLOAD_BYTES:
+            raise UploadTooLargeError(
+                f"Declared size {total_size} exceeds maximum upload size of {MAX_UPLOAD_BYTES} bytes"
+            )
         safe_name = os.path.basename(filename)
         transfers_dir = get_transfers_dir()
 
@@ -213,6 +221,16 @@ class TransferManager:
                         break
                     f.write(chunk)
                     written += len(chunk)
+                    # TD-017: abort per-chunk when the client sends more than it
+                    # declared (or more than the cap) instead of draining it all.
+                    if written > total_size:
+                        raise UploadTooLargeError(
+                            f"Received more than declared total_size ({total_size} bytes)"
+                        )
+                    if written > MAX_UPLOAD_BYTES:
+                        raise UploadTooLargeError(
+                            f"Upload exceeds maximum size of {MAX_UPLOAD_BYTES} bytes"
+                        )
                     self.update_progress(transfer_id, written)
                     if progress_cb:
                         await progress_cb(self.get_status(transfer_id))
@@ -280,7 +298,12 @@ class TransferManager:
                 dest_file = resolve_within(base_dir, os.path.basename(rel_path))
             dest_file.parent.mkdir(parents=True, exist_ok=True)
 
-            content = await file_obj.read()
+            # TD-017: bounded read — never buffer more than the cap in RAM.
+            content = await file_obj.read(MAX_UPLOAD_BYTES + 1)
+            if len(content) > MAX_UPLOAD_BYTES:
+                raise UploadTooLargeError(
+                    f"File exceeds maximum upload size of {MAX_UPLOAD_BYTES} bytes"
+                )
             tmp_file = dest_file.parent / f".tmp_{uuid.uuid4().hex[:8]}_{dest_file.name}"
             try:
                 with open(tmp_file, "wb") as f:
@@ -310,8 +333,14 @@ class TransferManager:
             "files": saved_files
         }
 
-    def create_folder_zip(self, folder_name: str) -> io.BytesIO:
-        """Package a transferred folder into a zip archive buffer on-the-fly."""
+    def create_folder_zip(self, folder_name: str) -> Iterator[bytes]:
+        """Package a transferred folder into a zip, streaming chunks from a temp file.
+
+        TD-017: the archive is built in a temp file on disk and yielded in
+        chunks, so a large folder never materializes as an in-memory buffer.
+        Validation runs synchronously so FileNotFoundError raises to the caller
+        before any streaming starts.
+        """
         safe_folder = os.path.basename(folder_name).strip()
         try:
             folder_path = resolve_within(get_transfers_dir(), safe_folder)
@@ -320,15 +349,28 @@ class TransferManager:
         if not folder_path.exists() or not folder_path.is_dir():
             raise FileNotFoundError(f"Folder '{folder_name}' not found")
 
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-            for root, _, files in os.walk(folder_path):
-                for file in files:
-                    full_p = Path(root) / file
-                    rel_p = full_p.relative_to(folder_path)
-                    zf.write(full_p, arcname=str(rel_p).replace("\\", "/"))
-        
-        buffer.seek(0)
-        return buffer
+        def _stream() -> Iterator[bytes]:
+            # .tmp_ prefix keeps list_transfers from advertising the partial zip.
+            tmp_zip = get_transfers_dir() / f".tmp_zip_{uuid.uuid4().hex[:12]}.zip"
+            try:
+                with zipfile.ZipFile(tmp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for root, _, files in os.walk(folder_path):
+                        for file in files:
+                            full_p = Path(root) / file
+                            rel_p = full_p.relative_to(folder_path)
+                            zf.write(full_p, arcname=str(rel_p).replace("\\", "/"))
+                with open(tmp_zip, "rb") as f:
+                    while True:
+                        chunk = f.read(64 * 1024)
+                        if not chunk:
+                            break
+                        yield chunk
+            finally:
+                try:
+                    tmp_zip.unlink(missing_ok=True)
+                except OSError:
+                    pass
+
+        return _stream()
 
 transfer_manager = TransferManager()

@@ -14,6 +14,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
+/** HTTP status surfaced so callers can separate permanent 4xx from transient errors. */
+class HttpStatusException(val code: Int, message: String) : Exception(message)
+
 class PhotoSyncApiClient {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -76,7 +79,9 @@ class PhotoSyncApiClient {
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    return@withContext Result.failure(Exception("HTTP error ${response.code}"))
+                    return@withContext Result.failure(
+                        HttpStatusException(response.code, "HTTP error ${response.code}")
+                    )
                 }
                 val body = response.body?.string() ?: ""
                 val respJson = JSONObject(body)
@@ -133,7 +138,9 @@ class PhotoSyncApiClient {
                 if (response.isSuccessful) {
                     Result.success(Unit)
                 } else {
-                    Result.failure(Exception("Upload failed with HTTP ${response.code}"))
+                    Result.failure(
+                        HttpStatusException(response.code, "Upload failed with HTTP ${response.code}")
+                    )
                 }
             }
         } catch (e: Exception) {

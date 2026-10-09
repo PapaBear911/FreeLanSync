@@ -223,7 +223,8 @@ class MainActivity : ComponentActivity() {
                                             Toast.makeText(this, "Backup finished successfully!", Toast.LENGTH_SHORT).show()
                                         } else if (workInfo.state == WorkInfo.State.FAILED) {
                                             isSyncing = false
-                                            Toast.makeText(this, "Backup failed. Ensure server is online.", Toast.LENGTH_SHORT).show()
+                                            val reason = workInfo.outputData.getString(PhotoSyncWorker.KEY_FAILURE_REASON)
+                                            Toast.makeText(this, reason ?: "Backup failed. Ensure server is online.", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }

@@ -113,8 +113,14 @@ function startPythonServer() {
     PYTHONIOENCODING: 'utf-8'
   };
 
+  // TD-021: bind address comes from the same env the server defines
+  // (server/config.py SERVER_HOST). Default 0.0.0.0 preserves the product
+  // feature — phones on the LAN must reach the server; README documents the
+  // threat model and how to restrict to 127.0.0.1.
+  const serverHost = process.env.FREELANSYNC_HOST || process.env.PHOTOSYNC_HOST || '0.0.0.0';
+
   try {
-    pyProcess = spawn(pythonCmd, ['-m', 'uvicorn', 'server.main:app', '--host', '0.0.0.0', '--port', `${SERVER_PORT}`], {
+    pyProcess = spawn(pythonCmd, ['-m', 'uvicorn', 'server.main:app', '--host', serverHost, '--port', `${SERVER_PORT}`], {
       cwd: rootDir,
       windowsHide: true,
       env: env,

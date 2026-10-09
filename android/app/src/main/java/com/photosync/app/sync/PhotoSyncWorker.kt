@@ -13,6 +13,7 @@ import androidx.work.workDataOf
 import com.photosync.app.data.MediaStoreScanner
 import com.photosync.app.data.PreferencesManager
 import com.photosync.app.network.PhotoSyncApiClient
+import com.photosync.app.network.HttpStatusException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -33,6 +34,14 @@ class PhotoSyncWorker(
         const val NOTIFICATION_ID = 1001
         const val KEY_PROGRESS_CURRENT = "progress_current"
         const val KEY_PROGRESS_TOTAL = "progress_total"
+        const val KEY_FAILURE_REASON = "failure_reason"
+
+        /** 4xx responses are permanent for this pairing; retrying cannot succeed. */
+        private fun isPermanentHttpError(e: Throwable?): Boolean =
+            e is HttpStatusException && e.code in 400..499
+
+        private fun failureResult(e: Throwable?): Result =
+            Result.failure(workDataOf(KEY_FAILURE_REASON to (e?.message ?: "Unknown backup error")))
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -75,7 +84,12 @@ class PhotoSyncWorker(
                 hashes = hashList
             )
 
-            val missingHashes = checkResult.getOrNull() ?: return@withContext Result.retry()
+            val missingHashes = checkResult.getOrNull()
+                ?: return@withContext if (isPermanentHttpError(checkResult.exceptionOrNull())) {
+                    failureResult(checkResult.exceptionOrNull())
+                } else {
+                    Result.retry()
+                }
 
             if (missingHashes.isEmpty()) {
                 prefs.setLastSyncTime(System.currentTimeMillis())
@@ -85,6 +99,9 @@ class PhotoSyncWorker(
             // 4. Upload missing files
             val totalToUpload = missingHashes.size
             var uploadedCount = 0
+            var transientFailures = 0
+            var permanentFailures = 0
+            var lastFailure: Throwable? = null
 
             val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
 
@@ -114,16 +131,34 @@ class PhotoSyncWorker(
                 )
 
                 if (uploadResult.isFailure) {
-                    // Log error and continue with next file
-                    uploadResult.exceptionOrNull()?.printStackTrace()
+                    // Track failures: 4xx is permanent (retrying cannot help),
+                    // anything else (network/5xx) is transient.
+                    val err = uploadResult.exceptionOrNull()
+                    err?.printStackTrace()
+                    if (isPermanentHttpError(err)) {
+                        permanentFailures++
+                        lastFailure = err
+                        val code = (err as? HttpStatusException)?.code
+                        if (code == 401 || code == 403) break // bad credential: stop the run
+                    } else {
+                        transientFailures++
+                        lastFailure = err
+                    }
                 }
             }
 
-            prefs.setLastSyncTime(System.currentTimeMillis())
-            Result.success()
+            // TD-033: success only when every item actually uploaded.
+            when {
+                transientFailures == 0 && permanentFailures == 0 -> {
+                    prefs.setLastSyncTime(System.currentTimeMillis())
+                    Result.success()
+                }
+                transientFailures > 0 -> Result.retry()
+                else -> failureResult(lastFailure)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
-            Result.retry()
+            if (isPermanentHttpError(e)) failureResult(e) else Result.retry()
         }
     }
 

@@ -284,6 +284,9 @@ TRANSFERS_DIR = get_transfers_dir()
 # Server Network Settings
 SERVER_HOST = os.getenv("FREELANSYNC_HOST", os.getenv("PHOTOSYNC_HOST", "0.0.0.0"))
 SERVER_PORT = int(os.getenv("FREELANSYNC_PORT", os.getenv("PHOTOSYNC_PORT", "8080")))
+# TD-017: cap every upload route; over-limit requests are rejected with 413
+# before the body is buffered in RAM.
+MAX_UPLOAD_BYTES = int(os.getenv("FREELANSYNC_MAX_UPLOAD_MB", os.getenv("PHOTOSYNC_MAX_UPLOAD_MB", "4096"))) * 1024 * 1024
 SERVICE_NAME = "FreeLanSync Desktop Server"
 MDNS_SERVICE_TYPE = "_freelansync._tcp.local."
 LEGACY_MDNS_SERVICE_TYPE = "_photosync._tcp.local."

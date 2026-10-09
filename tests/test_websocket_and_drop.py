@@ -113,6 +113,35 @@ def test_websocket_device_authentication():
     assert len(data["notifications"]) >= 1
     assert data["notifications"][0]["title"] == "Alice"
 
+def test_websocket_device_header_authentication():
+    """TD-028 Phase A: device auth via Authorization header, not query string."""
+    token = "hdr_token_123"
+    register_device(device_name="Pixel HDR", device_id="test_phone_hdr", auth_token=token)
+
+    # 1. Header credential is accepted
+    with client.websocket_connect(
+        "/api/v1/ws/device-bridge?client_type=device",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as ws:
+        ws.send_json({"event": "BATTERY_STATUS", "data": {"level": 55, "is_charging": False, "health": "GOOD"}})
+
+    status_resp = client.get("/api/v1/continuity/status")
+    assert status_resp.json()["battery"]["level"] == 55
+
+    # 2. No credential at all is still rejected when one is required
+    from starlette.websockets import WebSocketDisconnect
+
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/api/v1/ws/device-bridge?client_type=device") as ws:
+            ws.receive_json()
+
+    # 3. Query-string token remains only as a compatibility fallback for older
+    #    fielded APKs (documented in server/main.py device_bridge_ws).
+    with client.websocket_connect(
+        f"/api/v1/ws/device-bridge?client_type=device&token={token}"
+    ) as ws:
+        ws.send_json({"event": "BATTERY_STATUS", "data": {"level": 77, "is_charging": True, "health": "GOOD"}})
+
 def test_websocket_device_disconnect_broadcast():
     token = "mock_token_disc"
     register_device(device_name="Galaxy S24", device_id="test_phone_disc", auth_token=token)

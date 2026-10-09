@@ -261,6 +261,14 @@
     </div>
   </div>
 
+  <!-- Persistent connection status banner (replaces silent fetch failures / toast spam) -->
+  <div id="serverStatusBanner" role="status" aria-live="polite" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-40">
+    <div class="ios-glass px-4 py-2 rounded-full flex items-center gap-2.5 shadow-2xl border border-amber-500/30 bg-amber-950/70 text-xs font-semibold text-amber-200">
+      <i data-lucide="wifi-off" class="w-4 h-4 text-amber-400"></i>
+      <span id="serverStatusText">Server unreachable</span>
+    </div>
+  </div>
+
   <!-- Incoming Call Alert (iOS Banner Style) -->
   <div id="incomingCallBanner" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-md w-full px-4 transition-all duration-300">
     <div class="ios-glass border-rose-500/40 bg-rose-950/70 rounded-3xl p-4 shadow-2xl flex items-center justify-between text-white backdrop-blur-2xl">
@@ -396,7 +404,7 @@
           </button>
 
           <!-- Refresh Button -->
-          <button onclick="refreshData()" aria-label="Refresh Dashboard" class="ios-btn-icon w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Refresh">
+          <button onclick="refreshData(true)" aria-label="Refresh Dashboard" class="ios-btn-icon w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white" title="Refresh">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -1445,6 +1453,39 @@
       lucide.createIcons();
     }
 
+    // --- Connection status indicator + reconnect backoff (TD-040) ---------------
+    const FETCH_FAILURE_THRESHOLD = 2;
+    const WS_BACKOFF_MIN_MS = 1000;
+    const WS_BACKOFF_MAX_MS = 30000;
+    let consecutiveFetchFailures = 0;
+    let wsConnected = false;
+    let wsReconnectDelayMs = WS_BACKOFF_MIN_MS;
+
+    function updateServerStatusIndicator() {
+      const banner = document.getElementById('serverStatusBanner');
+      const textEl = document.getElementById('serverStatusText');
+      if (!banner || !textEl) return;
+      if (consecutiveFetchFailures >= FETCH_FAILURE_THRESHOLD) {
+        textEl.innerText = 'Server unreachable — retrying\u2026';
+        banner.classList.remove('hidden');
+      } else if (!wsConnected) {
+        textEl.innerText = 'Live connection lost — reconnecting\u2026';
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    function noteFetchSuccess() {
+      consecutiveFetchFailures = 0;
+      updateServerStatusIndicator();
+    }
+
+    function noteFetchFailure() {
+      consecutiveFetchFailures++;
+      updateServerStatusIndicator();
+    }
+
     // WebSocket Device Continuity Bridge
     function connectWebSocket() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1454,6 +1495,9 @@
 
       ws.onopen = () => {
         console.log('[FreeLanSync] Connected to Continuity Bridge');
+        wsConnected = true;
+        wsReconnectDelayMs = WS_BACKOFF_MIN_MS;
+        updateServerStatusIndicator();
       };
 
       ws.onmessage = (event) => {
@@ -1466,7 +1510,10 @@
       };
 
       ws.onclose = () => {
-        setTimeout(connectWebSocket, 3000);
+        wsConnected = false;
+        updateServerStatusIndicator();
+        setTimeout(connectWebSocket, wsReconnectDelayMs);
+        wsReconnectDelayMs = Math.min(wsReconnectDelayMs * 2, WS_BACKOFF_MAX_MS);
       };
 
       ws.onerror = (err) => {
@@ -1968,6 +2015,7 @@
 
         const dropData = dropRes.ok ? await dropRes.json() : { pending: [] };
         const transData = transRes.ok ? await transRes.json() : { transfers: [] };
+        if (dropRes.ok && transRes.ok) noteFetchSuccess(); else noteFetchFailure();
 
         const pendingList = dropData.pending || [];
         const transList = transData.transfers || [];
@@ -2035,6 +2083,7 @@
         lucide.createIcons();
       } catch (err) {
         console.error('Failed to load pending drops and transfers', err);
+        noteFetchFailure();
       }
     }
 
@@ -2104,8 +2153,9 @@
     async function fetchPairingInfo() {
       try {
         const res = await fetch('/api/v1/pairing/info');
-        if (!res.ok) return;
+        if (!res.ok) { noteFetchFailure(); return; }
         const data = await res.json();
+        noteFetchSuccess();
         document.getElementById('pinCode').innerText = data.pin;
         document.getElementById('qrContainer').innerHTML = data.qr_svg;
         const pairingUriEl = document.getElementById('pairingUri');
@@ -2130,6 +2180,7 @@
         document.getElementById('pinTimer').innerText = `Expires in ${Math.floor(seconds / 60)}m ${seconds % 60}s`;
       } catch (err) {
         console.error('Failed to fetch pairing info', err);
+        noteFetchFailure();
       }
     }
 
@@ -2284,8 +2335,9 @@
     async function fetchStorageSettings() {
       try {
         const res = await fetch('/api/v1/settings');
-        if (!res.ok) return;
+        if (!res.ok) { noteFetchFailure(); return; }
         const data = await res.json();
+        noteFetchSuccess();
         document.getElementById('currentStorageDisplay').innerText = data.backup_dir || data.storage_dir;
         document.getElementById('storagePathInput').value = data.storage_dir;
         if (data.stats) {
@@ -2296,6 +2348,7 @@
         }
       } catch (err) {
         console.error('Failed to fetch settings', err);
+        noteFetchFailure();
       }
     }
 
@@ -2345,8 +2398,9 @@
     async function fetchDevices() {
       try {
         const res = await fetch('/api/v1/devices');
-        if (!res.ok) return;
+        if (!res.ok) { noteFetchFailure(); return; }
         const data = await res.json();
+        noteFetchSuccess();
         const devices = data.devices || [];
 
         animateCounter('statDevices', devices.length);
@@ -2388,6 +2442,7 @@
         }
       } catch (err) {
         console.error('Failed to fetch devices', err);
+        noteFetchFailure();
       }
     }
 
@@ -2475,8 +2530,9 @@
     async function fetchRecentMedia() {
       try {
         const res = await fetch('/api/v1/photos/recent');
-        if (!res.ok) return;
+        if (!res.ok) { noteFetchFailure(); return; }
         const data = await res.json();
+        noteFetchSuccess();
         const media = data.recent_media || [];
 
         const gallery = document.getElementById('mediaGallery');
@@ -2501,6 +2557,7 @@
         updateGallerySentinel();
       } catch (err) {
         console.error('Failed to fetch media', err);
+        noteFetchFailure();
       }
     }
 
@@ -2513,14 +2570,14 @@
       }, { rootMargin: '400px' }).observe(sentinel);
     }
 
-    function refreshData() {
+    function refreshData(manual = false) {
       fetchPairingInfo();
       fetchStorageSettings();
       fetchStorageInfo();
       fetchDevices();
       fetchRecentMedia();
       loadPendingDrops();
-      showToast('Dashboard refreshed');
+      if (manual) showToast('Dashboard refreshed');
     }
 
     // Startup Initializer
@@ -2531,7 +2588,11 @@
       initGalleryInfiniteScroll();
       startBeamAnimation();
       animateTabTransition(document.getElementById('tabSectionVault'));
-      setInterval(refreshData, 12000);
+      // Skip polling while the tab is hidden; refresh once on return.
+      setInterval(() => { if (!document.hidden) refreshData(); }, 12000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refreshData();
+      });
 
       // Keyboard Esc to close modals
       document.addEventListener('keydown', (e) => {
